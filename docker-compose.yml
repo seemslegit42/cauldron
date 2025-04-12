@@ -1,0 +1,119 @@
+version: '3.8'
+services:
+  # --- Backend Services ---
+  postgres:
+    image: postgres:14-alpine
+    container_name: cauldron-postgres
+    volumes:
+      - cauldron_postgres_data:/var/lib/postgresql/data
+    environment:
+      POSTGRES_PASSWORD: ${FRAPPE_DB_PASSWORD} #  Pulled from .env
+    ports:
+      - "5432:5432"
+    networks:
+      - cauldron_net
+
+  redis:
+    image: redis:7-alpine
+    container_name: cauldron-redis
+    ports:
+      - "6379:6379"
+    networks:
+      - cauldron_net
+    volumes:
+      - cauldron_redis_data:/data
+
+  #  Example RabbitMQ (or Kafka, adjust as needed)
+  rabbitmq:
+    image: rabbitmq:3.12-management-alpine
+    container_name: cauldron-rabbitmq
+    ports:
+      - "5672:5672"  # AMQP port
+      - "15672:15672" # Management UI
+    volumes:
+      - cauldron_rabbitmq_data:/var/lib/rabbitmq
+    networks:
+      - cauldron_net
+    environment:
+      RABBITMQ_DEFAULT_USER: user
+      RABBITMQ_DEFAULT_PASS: password
+
+  # ---  SuperAGI (Agent Orchestration) ---
+  superagi:
+    image: superagi/superagi:latest
+    container_name: cauldron-superagi
+    ports:
+      - "8001:8001"
+    environment:
+      POSTGRES_HOST: ${POSTGRES_HOST} # Pulled from .env
+      POSTGRES_PORT: ${POSTGRES_PORT} # Pulled from .env
+      POSTGRES_USER: ${POSTGRES_USER} # Pulled from .env
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD} # Pulled from .env
+      POSTGRES_DB: ${POSTGRES_DB} # Pulled from .env
+      REDIS_HOST: ${REDIS_HOST} # Pulled from .env
+      REDIS_PORT: ${REDIS_PORT} # Pulled from .env
+      #  Add other SuperAGI specific env vars as needed (e.g., for vector DB)
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - cauldron_net
+    volumes:
+      - cauldron_superagi_data:/home/superagi/.local/share/AGI
+
+  # --- n8n (Workflow Automation) ---
+  n8n:
+    image: n8nio/n8n
+    container_name: cauldron-n8n
+    ports:
+      - "${N8N_PORT}:5678" # Pulled from .env
+    environment:
+      N8N_HOST: ${N8N_HOST} # Pulled from .env
+      N8N_PORT: 5678
+      N8N_PROTOCOL: http
+      NODE_ENV: production
+      WEB_BASE_URL: /
+      # Generic
+      DB_TYPE: postgresdb
+      DB_HOST: ${POSTGRES_HOST} # Pulled from .env
+      DB_PORT: ${POSTGRES_PORT} # Pulled from .env
+      DB_USER: ${POSTGRES_USER} # Pulled from .env
+      DB_PASSWORD: ${POSTGRES_PASSWORD} # Pulled from .env
+      DB_DATABASE: ${POSTGRES_DB} # Pulled from .env
+      EXECUTIONS_DATA_SAVE_ON_SUCCESS: true
+      EXECUTIONS_DATA_SAVE_ON_FAILURE: true
+      N8N_BASIC_AUTH_ACTIVE: true
+      N8N_BASIC_AUTH_USER: "n8n"
+      N8N_BASIC_AUTH_PASSWORD: "${N8N_PASSWORD}" # Pulled from .env
+    volumes:
+      - cauldron_n8n_data:/root/.n8n
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - cauldron_net
+
+  # ---  Manifold (Frontend) -  Simplified for initial setup ---
+  manifold:
+    image: nginx:alpine  #  Using a simple nginx image for now.
+    container_name: cauldron-manifold
+    ports:
+      - "80:80"  #  Map to port 80 for standard web access.
+    volumes:
+      - ./manifold:/usr/share/nginx/html  # Mount the 'manifold' directory
+    networks:
+      - cauldron_net
+    #  In a full setup, you'd build your React app and copy the
+    #  build output to /usr/share/nginx/html.  For this bootstrap,
+    #  we'll assume you have a pre-built version.
+
+networks:
+  cauldron_net:
+    driver: bridge
+
+volumes:
+  cauldron_postgres_data:
+  cauldron_redis_data:
+  cauldron_rabbitmq_data:
+  cauldron_superagi_data:
+  cauldron_n8n_data:
