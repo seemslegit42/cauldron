@@ -1,0 +1,92 @@
+// .devcontainer/devcontainer.json
+{
+  "name": "Cauldron™ sEOS Dev Environment",
+
+  // Start with a flexible base image
+  "image": "mcr.microsoft.com/devcontainers/universal:2",
+
+  // --- Features ---
+  "features": {
+    // Docker-in-Docker
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {
+      "version": "latest",
+      "moby": true
+    },
+    // Terraform
+    "ghcr.io/devcontainers/features/terraform:1": {
+      "version": "latest"
+    },
+    // Python (ensure version matches Frappe requirements, e.g., 3.11+)
+    "ghcr.io/devcontainers/features/python:1": {
+      "version": "3.11",
+      "installPipx": true // For Frappe Bench
+    },
+    // Node.js (for Manifold UI)
+    "ghcr.io/devcontainers/features/node:1": {
+      "version": "lts"
+    }
+    // Add other features like "ghcr.io/devcontainers/features/postgres:1" if needed for psql client
+  },
+
+  // --- Port Forwarding ---
+  "forwardPorts": [
+    3000, // Manifold UI
+    8000, // Frappe / ERPNext
+    7007, // Backstage
+    8001 // Example: API Gateway
+    // Add other ports as needed (e.g., 9092 Kafka, 5672 RabbitMQ)
+  ],
+  "portsAttributes": {
+    "3000": { "label": "Manifold UI" },
+    "8000": { "label": "Frappe/ERPNext" },
+    "7007": { "label": "Backstage" },
+    "8001": { "label": "API Gateway" }
+  },
+
+  // --- Lifecycle Commands ---
+  // Setup system dependencies
+  "onCreateCommand": "sudo apt-get update && sudo apt-get install -y --no-install-recommends wkhtmltopdf && sudo rm -rf /var/lib/apt/lists/*",
+
+  // Install global tools (bench), project dependencies (npm), then run our setup script.
+  // Added chmod +x based on user feedback for Windows compatibility via Git.
+  "postCreateCommand": "pipx install frappe-bench --python python3.11 && npm install -g pnpm && cd /workspaces/cauldron-sEOS/manifold && pnpm install && chmod +x /workspaces/cauldron-sEOS/scripts/setup_frappe.sh && bash /workspaces/cauldron-sEOS/scripts/setup_frappe.sh",
+
+  // Optional: Command to run services on attach if needed
+  // "postAttachCommand": "docker-compose up -d postgres redis kafka || true",
+
+  // --- VS Code Customizations ---
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-python.python",
+        "ms-python.vscode-pylance",
+        "ms-azuretools.vscode-docker",
+        "hashicorp.terraform",
+        "esbenp.prettier-vscode",
+        "dbaeumer.vscode-eslint",
+        "ms-vscode.vscode-node-azure-pack",
+        "redhat.vscode-yaml",
+        "VisualStudioExptTeam.vscodeintellicode",
+        "github.vscode-github-actions"
+        // Add other extensions
+      ],
+      "settings": {
+        "python.defaultInterpreterPath": "/usr/local/bin/python",
+        "python.linting.enabled": true,
+        "python.linting.pylintEnabled": true,
+        "editor.formatOnSave": true,
+        "[python]": {
+          "editor.defaultFormatter": "ms-python.black-formatter",
+          "editor.codeActionsOnSave": { "source.organizeImports": "explicit" }
+        },
+        "[javascript][typescript][javascriptreact][typescriptreact]": {
+          "editor.defaultFormatter": "esbenp.prettier-vscode"
+        },
+        "files.eol": "\n"
+      }
+    }
+  },
+
+  // --- User ---
+  "remoteUser": "vscode"
+}

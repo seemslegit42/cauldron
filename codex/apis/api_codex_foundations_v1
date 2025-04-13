@@ -1,0 +1,77 @@
+# Cauldron™ API Codex V1.0 - Foundations
+
+This document establishes the foundational standards, guidelines, and conventions for all synchronous APIs developed within the Cauldron™ sEOS. Adherence to these standards is mandatory to ensure consistency, interoperability, and maintainability.
+
+## 1. Guiding Principles
+
+*   **RESTful Design:** APIs should adhere to REST principles where practical, using standard HTTP methods (GET, POST, PUT, PATCH, DELETE), resource-based URLs, and standard status codes.
+*   **Statelessness:** API requests should be stateless. Each request must contain all information necessary to process it, without relying on server-side session state.
+*   **Discoverability:** (Future Goal) APIs should ideally provide mechanisms for discovering capabilities (e.g., via HATEOAS or well-documented OpenAPI specs).
+*   **Security First:** All API interactions must be authenticated and authorized. Use industry best practices for securing endpoints.
+*   **Consistency:** Use consistent naming conventions, data formats, and error handling across all APIs.
+
+## 2. Technology & Specification
+
+*   **Specification Format:** All APIs MUST be documented using the **OpenAPI Specification (OAS) version 3.x**. OAS files (YAML or JSON) should be maintained alongside the service code and ideally generated/validated automatically where possible.
+*   **Location:** OpenAPI specifications should reside within the `/codex/apis/` directory, potentially organized by service (e.g., `/codex/apis/aethercore/openapi.yaml`).
+*   **Data Format:** The standard data format for request and response bodies is **JSON** (`application/json`).
+
+## 3. Naming Conventions
+
+*   **Resource URLs:** Use lowercase, hyphen-separated (`kebab-case`) path segments representing resources (e.g., `/api/v1/agents`, `/api/v1/security-incidents/{incidentId}`). Use plural nouns for collections.
+*   **JSON Fields:** Use `snake_case` for JSON field names in request and response bodies (e.g., `"agent_id"`, `"task_status"`).
+*   **Query Parameters:** Use `snake_case` for query parameters (e.g., `/api/v1/tasks?status=pending&sort_by=created_at`).
+
+## 4. Authentication & Authorization
+
+*   **Primary Method:** The standard authentication method for APIs consumed by Manifold or external clients is **JWT (JSON Web Tokens)**.
+    *   Tokens are issued by an authentication provider (e.g., Supabase Auth) upon successful login.
+    *   Tokens MUST be passed in the `Authorization` header using the `Bearer` scheme (e.g., `Authorization: Bearer <your_jwt_token>`).
+    *   APIs MUST validate the token signature, expiration, and relevant claims.
+*   **Inter-Service Communication:** For internal, service-to-service synchronous calls (use sparingly!), alternative mechanisms like API keys or mutual TLS might be considered, but JWT is preferred if feasible. These require specific security review.
+*   **Authorization:** Authentication confirms *who* the user/service is; authorization confirms *what* they are allowed to do. Implement role-based access control (RBAC) or other appropriate authorization checks within each API endpoint based on the validated identity (e.g., user roles/permissions extracted from JWT claims).
+
+## 5. Versioning
+
+*   **Strategy:** API versioning will be done via **URL path prefix** (e.g., `/api/v1/...`, `/api/v2/...`).
+*   **Requirement:** All APIs MUST include a version identifier in their path. Start with `v1`.
+*   **Backward Compatibility:** Strive for backward compatibility within a major version (v1). Breaking changes REQUIRE incrementing the major version number (v1 -> v2).
+
+## 6. Request & Response Structure
+
+*   **Standard Responses:**
+    *   `200 OK`: Standard response for successful GET, PUT, PATCH requests.
+    *   `201 Created`: Standard response for successful POST requests that create a new resource. Include a `Location` header pointing to the newly created resource.
+    *   `204 No Content`: Standard response for successful DELETE requests or POST/PUT/PATCH requests that don't return a body.
+    *   `400 Bad Request`: Client error (e.g., invalid JSON, missing required fields). Include a descriptive error message body.
+    *   `401 Unauthorized`: Authentication failed or missing.
+    *   `403 Forbidden`: Authentication succeeded, but the user lacks permission for the requested action.
+    *   `404 Not Found`: The requested resource does not exist.
+    *   `422 Unprocessable Entity`: The request was well-formed but semantically incorrect (e.g., validation error). Often used with detailed validation errors in the body.
+    *   `500 Internal Server Error`: Generic server-side error. Avoid returning sensitive details; log them server-side.
+*   **Error Response Body:** For `4xx` and `5xx` errors, provide a consistent JSON error body:
+    ```json
+    {
+      "error": {
+        "code": "VALIDATION_ERROR", // Or AUTH_ERROR, NOT_FOUND, INTERNAL_ERROR, etc.
+        "message": "A descriptive error message for the user/developer.",
+        "details": { // Optional: More specific details, e.g., field validation errors
+          "field_name": ["Error message 1", "Error message 2"]
+        }
+      }
+    }
+    ```
+*   **Pagination:** For endpoints returning collections, implement cursor-based or offset-based pagination using standard query parameters (e.g., `limit`, `offset`, `next_cursor`). Include pagination metadata in the response.
+
+## 7. Initial API Surfaces (Phase 1 Focus)
+
+While detailed specs will evolve, initial APIs needed likely include:
+
+*   **Authentication Service (e.g., Supabase hosted or custom):** Login, logout, user profile.
+*   **Operations Core (Frappe):** Standard ERPNext REST API for CRUD on core DocTypes, plus potential custom endpoints for specific actions.
+*   **AetherCore:** Agent status listing, agent management (start/stop - limited initial scope), task queue overview.
+*   **Lore:** RAG query endpoint, knowledge source management.
+*   **Synapse:** Endpoint to fetch basic BI data/dashboards.
+*   **(Potentially) API Gateway:** Acts as the single entry point, routing requests to the appropriate backend service.
+
+These foundations provide the framework for building consistent and maintainable APIs across the Cauldron™ sEOS.
