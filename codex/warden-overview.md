@@ -92,8 +92,4 @@ Cauldron™ provides the power and intelligence; you provide the wisdom, ethics,
 
 \---
 
-\*\*The Goal:\*\* By working together – you and Cauldron™ – the aim is to create an enterprise that operates with unprecedented intelligence and adaptability, ready to thrive in an increasingly complex future.
-
-Hopefully, this overview gives you a clearer conceptual picture of the amazing system you're bringing to life\! Refer back to this anytime you need to zoom out from the details and see the forest for the trees.
-
- 
+\*\*The Goal:\*\* By working together – you and Cauldron™ – the aim is to create an enterprise that operates with unprecedented intelligence and adaptability, ready to thrive in an increasingly complex future. 
