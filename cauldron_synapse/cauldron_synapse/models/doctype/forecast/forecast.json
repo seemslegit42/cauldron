@@ -1,0 +1,341 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "format:FCST-{metric}-{YYYY}-{MM}-{#####}",
+ "creation": "2023-01-01 00:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "forecast_name",
+  "metric",
+  "description",
+  "status",
+  "configuration_section",
+  "forecast_model",
+  "model_parameters",
+  "forecast_horizon",
+  "forecast_frequency",
+  "confidence_level",
+  "include_prediction_intervals",
+  "seasonality_mode",
+  "include_holidays",
+  "holiday_region",
+  "external_regressors",
+  "results_section",
+  "forecast_date",
+  "last_historical_date",
+  "forecast_values",
+  "forecast_chart",
+  "performance_metrics",
+  "metadata_section",
+  "created_by",
+  "creation_date",
+  "modified_date",
+  "tags",
+  "is_active",
+  "version",
+  "governance_section",
+  "approval_status",
+  "approved_by",
+  "approval_date",
+  "approval_comments",
+  "data_classification",
+  "access_roles",
+  "integration_section",
+  "publish_to_mythos",
+  "mythos_event_topic",
+  "enable_automated_actions"
+ ],
+ "fields": [
+  {
+   "fieldname": "forecast_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Forecast Name",
+   "reqd": 1
+  },
+  {
+   "fieldname": "metric",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Metric",
+   "options": "AnalyticsMetric",
+   "reqd": 1
+  },
+  {
+   "fieldname": "description",
+   "fieldtype": "Text Editor",
+   "label": "Description"
+  },
+  {
+   "default": "Draft",
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Status",
+   "options": "Draft\nRunning\nCompleted\nFailed\nApproved\nRejected\nArchived",
+   "reqd": 1
+  },
+  {
+   "fieldname": "configuration_section",
+   "fieldtype": "Section Break",
+   "label": "Forecast Configuration"
+  },
+  {
+   "fieldname": "forecast_model",
+   "fieldtype": "Select",
+   "label": "Forecast Model",
+   "options": "Prophet\nARIMA\nSARIMA\nExponential Smoothing\nLSTM\nXGBoost\nEnsemble\nCustom",
+   "reqd": 1
+  },
+  {
+   "fieldname": "model_parameters",
+   "fieldtype": "Code",
+   "label": "Model Parameters",
+   "options": "JSON"
+  },
+  {
+   "fieldname": "forecast_horizon",
+   "fieldtype": "Int",
+   "label": "Forecast Horizon",
+   "reqd": 1
+  },
+  {
+   "fieldname": "forecast_frequency",
+   "fieldtype": "Select",
+   "label": "Forecast Frequency",
+   "options": "Daily\nWeekly\nMonthly\nQuarterly\nYearly\nHourly\nMinute\nCustom",
+   "reqd": 1
+  },
+  {
+   "default": "95",
+   "fieldname": "confidence_level",
+   "fieldtype": "Float",
+   "label": "Confidence Level (%)"
+  },
+  {
+   "default": "1",
+   "fieldname": "include_prediction_intervals",
+   "fieldtype": "Check",
+   "label": "Include Prediction Intervals"
+  },
+  {
+   "fieldname": "seasonality_mode",
+   "fieldtype": "Select",
+   "label": "Seasonality Mode",
+   "options": "Additive\nMultiplicative\nAuto\nNone"
+  },
+  {
+   "default": "0",
+   "fieldname": "include_holidays",
+   "fieldtype": "Check",
+   "label": "Include Holidays"
+  },
+  {
+   "depends_on": "eval:doc.include_holidays == 1",
+   "fieldname": "holiday_region",
+   "fieldtype": "Data",
+   "label": "Holiday Region"
+  },
+  {
+   "fieldname": "external_regressors",
+   "fieldtype": "Table",
+   "label": "External Regressors",
+   "options": "External Regressor"
+  },
+  {
+   "fieldname": "results_section",
+   "fieldtype": "Section Break",
+   "label": "Forecast Results"
+  },
+  {
+   "fieldname": "forecast_date",
+   "fieldtype": "Datetime",
+   "label": "Forecast Date",
+   "read_only": 1
+  },
+  {
+   "fieldname": "last_historical_date",
+   "fieldtype": "Date",
+   "label": "Last Historical Date",
+   "read_only": 1
+  },
+  {
+   "fieldname": "forecast_values",
+   "fieldtype": "Code",
+   "label": "Forecast Values",
+   "options": "JSON",
+   "read_only": 1
+  },
+  {
+   "fieldname": "forecast_chart",
+   "fieldtype": "HTML",
+   "label": "Forecast Chart"
+  },
+  {
+   "fieldname": "performance_metrics",
+   "fieldtype": "Code",
+   "label": "Performance Metrics",
+   "options": "JSON",
+   "read_only": 1
+  },
+  {
+   "fieldname": "metadata_section",
+   "fieldtype": "Section Break",
+   "label": "Metadata"
+  },
+  {
+   "fieldname": "created_by",
+   "fieldtype": "Link",
+   "label": "Created By",
+   "options": "User",
+   "read_only": 1
+  },
+  {
+   "fieldname": "creation_date",
+   "fieldtype": "Datetime",
+   "label": "Creation Date",
+   "read_only": 1
+  },
+  {
+   "fieldname": "modified_date",
+   "fieldtype": "Datetime",
+   "label": "Modified Date",
+   "read_only": 1
+  },
+  {
+   "fieldname": "tags",
+   "fieldtype": "Data",
+   "label": "Tags"
+  },
+  {
+   "default": "1",
+   "fieldname": "is_active",
+   "fieldtype": "Check",
+   "label": "Is Active"
+  },
+  {
+   "default": "1",
+   "fieldname": "version",
+   "fieldtype": "Int",
+   "label": "Version",
+   "read_only": 1
+  },
+  {
+   "fieldname": "governance_section",
+   "fieldtype": "Section Break",
+   "label": "Governance"
+  },
+  {
+   "default": "Pending",
+   "fieldname": "approval_status",
+   "fieldtype": "Select",
+   "label": "Approval Status",
+   "options": "Pending\nApproved\nRejected\nNot Required"
+  },
+  {
+   "depends_on": "eval:doc.approval_status == 'Approved' || doc.approval_status == 'Rejected'",
+   "fieldname": "approved_by",
+   "fieldtype": "Link",
+   "label": "Approved By",
+   "options": "User",
+   "read_only": 1
+  },
+  {
+   "depends_on": "eval:doc.approval_status == 'Approved' || doc.approval_status == 'Rejected'",
+   "fieldname": "approval_date",
+   "fieldtype": "Datetime",
+   "label": "Approval Date",
+   "read_only": 1
+  },
+  {
+   "depends_on": "eval:doc.approval_status == 'Approved' || doc.approval_status == 'Rejected'",
+   "fieldname": "approval_comments",
+   "fieldtype": "Text",
+   "label": "Approval Comments"
+  },
+  {
+   "fieldname": "data_classification",
+   "fieldtype": "Select",
+   "label": "Data Classification",
+   "options": "Public\nInternal\nConfidential\nRestricted\nRegulated"
+  },
+  {
+   "fieldname": "access_roles",
+   "fieldtype": "Table MultiSelect",
+   "label": "Access Roles",
+   "options": "Role Permission"
+  },
+  {
+   "fieldname": "integration_section",
+   "fieldtype": "Section Break",
+   "label": "Integration"
+  },
+  {
+   "default": "0",
+   "fieldname": "publish_to_mythos",
+   "fieldtype": "Check",
+   "label": "Publish to Mythos"
+  },
+  {
+   "depends_on": "eval:doc.publish_to_mythos == 1",
+   "fieldname": "mythos_event_topic",
+   "fieldtype": "Data",
+   "label": "Mythos Event Topic"
+  },
+  {
+   "default": "0",
+   "fieldname": "enable_automated_actions",
+   "fieldtype": "Check",
+   "label": "Enable Automated Actions"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2023-01-01 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Synapse",
+ "name": "Forecast",
+ "naming_rule": "Expression",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Analytics Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Analytics User",
+   "share": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}

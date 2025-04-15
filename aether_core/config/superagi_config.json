@@ -1,0 +1,22 @@
+{
+  "api_key": "${SUPERAGI_API_KEY}",
+  "base_url": "${SUPERAGI_API_URL}",
+  "agent_config": {
+    "default_llm": "gpt-4",
+    "default_agent_timeout": 3600,
+    "max_iterations": 25,
+    "agent_workflow": "hierarchical",
+    "memory_provider": "postgres",
+    "vector_store": "qdrant"
+  },
+  "resources": {
+    "vector_db_url": "http://qdrant:6333",
+    "database_url": "${DATABASE_URL}",
+    "message_broker_url": "${RABBITMQ_URL}"
+  },
+  "logging": {
+    "level": "${LOG_LEVEL}",
+    "format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    "file": "/app/logs/superagi.log"
+  }
+}

@@ -1,0 +1,55 @@
+{
+  "name": "cauldron_synapse",
+  "version": "0.1.0",
+  "description": "Predictive & Prescriptive Business Intelligence Module for Cauldron sEOS",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "frappe",
+    "business intelligence",
+    "analytics",
+    "forecasting",
+    "anomaly detection",
+    "predictive analytics",
+    "prescriptive analytics",
+    "data fabric",
+    "strategic advisor"
+  ],
+  "author": "Your Organization",
+  "license": "MIT",
+  "dependencies": {
+    "chart.js": "^3.9.1",
+    "d3": "^7.8.0",
+    "plotly.js": "^2.16.1",
+    "react-chartjs-2": "^4.3.1"
+  }
+}{
+  "name": "cauldron_synapse",
+  "version": "0.1.0",
+  "description": "Predictive & Prescriptive Business Intelligence Module for Cauldron sEOS",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "frappe",
+    "business intelligence",
+    "analytics",
+    "forecasting",
+    "anomaly detection",
+    "predictive analytics",
+    "prescriptive analytics",
+    "data fabric",
+    "strategic advisor"
+  ],
+  "author": "Your Organization",
+  "license": "MIT",
+  "dependencies": {
+    "chart.js": "^3.9.1",
+    "d3": "^7.8.0",
+    "plotly.js": "^2.16.1",
+    "react-chartjs-2": "^4.3.1"
+  }
+}

@@ -1,0 +1,18 @@
+include MANIFEST.in
+include requirements.txt
+include *.json
+include *.md
+include *.py
+include *.txt
+recursive-include cauldron_synapse *.css
+recursive-include cauldron_synapse *.csv
+recursive-include cauldron_synapse *.html
+recursive-include cauldron_synapse *.ico
+recursive-include cauldron_synapse *.js
+recursive-include cauldron_synapse *.json
+recursive-include cauldron_synapse *.md
+recursive-include cauldron_synapse *.png
+recursive-include cauldron_synapse *.py
+recursive-include cauldron_synapse *.svg
+recursive-include cauldron_synapse *.txt
+recursive-exclude cauldron_synapse *.pyc

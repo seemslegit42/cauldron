@@ -1,0 +1,4 @@
+{
+    "zencoder.shellTool.commandConfirmationPolicy": "neverAsk",
+    "zencoder.enableRepoIndexing": true
+}

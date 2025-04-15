@@ -1,21 +1,21 @@
 version: '3.8'
 
 services:
-  # Example: PostgreSQL Database (matches setup_frappe.sh DB_HOST)
+  # --- Database Layer ---
   postgres:
-    image: postgres:15 # Use a version compatible with Frappe/ERPNext
+    image: postgres:15
     container_name: cauldron-postgres
     environment:
-      # IMPORTANT: Set this via Codespaces secrets / .env file
       POSTGRES_PASSWORD: ${DB_ROOT_PASSWORD:-please_change_in_env}
-      # Add other PG settings if needed
-      # POSTGRES_DB: cauldron # DB name is set by `bench new-site`
-      # POSTGRES_USER: cauldron_user # User might be created by bench or use default postgres user
+      POSTGRES_USER: postgres
+      POSTGRES_DB: postgres
     volumes:
       - postgres_data:/var/lib/postgresql/data
-    # Expose port only if direct access from host machine is needed, otherwise keep internal
-    # ports:
-    #   - "5432:5432"
+      # Initialize with extensions and schema
+      - ./db/00_init:/docker-entrypoint-initdb.d/
+      - ./db/database_schema.sql:/docker-entrypoint-initdb.d/database_schema.sql
+    ports:
+      - "5432:5432"
     networks:
       - cauldron-net
     restart: unless-stopped
@@ -25,10 +25,51 @@ services:
       timeout: 5s
       retries: 5
 
-  # Example: Redis (needed by Frappe)
-  redis-cache: # Renamed to avoid conflict if system redis is installed
+  # Vector Database for Lore module
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: cauldron-qdrant
+    ports:
+      - "6333:6333" # REST API
+      - "6334:6334" # gRPC
+    volumes:
+      - qdrant_data:/qdrant/storage
+    networks:
+      - cauldron-net
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:6333/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Time-Series Database for metrics and monitoring
+  timescaledb:
+    image: timescale/timescaledb:latest-pg15
+    container_name: cauldron-timescaledb
+    environment:
+      POSTGRES_PASSWORD: ${TIMESCALE_PASSWORD:-please_change_in_env}
+      POSTGRES_USER: postgres
+      POSTGRES_DB: timeseries
+    volumes:
+      - timescaledb_data:/var/lib/postgresql/data
+      - ./db/03_timeseries:/docker-entrypoint-initdb.d/
+    ports:
+      - "5433:5432"
+    networks:
+      - cauldron-net
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -h localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # --- Redis Services (for Frappe/ERPNext) ---
+  redis-cache:
     image: redis:7-alpine
     container_name: cauldron-redis-cache
+    command: redis-server --save "" --maxmemory 256mb --maxmemory-policy allkeys-lru
     networks:
       - cauldron-net
     restart: unless-stopped
@@ -38,10 +79,10 @@ services:
       timeout: 5s
       retries: 5
 
-  # Example: Redis Queue (Often recommended to separate cache and queue)
   redis-queue:
     image: redis:7-alpine
     container_name: cauldron-redis-queue
+    command: redis-server --save "" --maxmemory 256mb --maxmemory-policy allkeys-lru
     networks:
       - cauldron-net
     restart: unless-stopped
@@ -51,90 +92,199 @@ services:
       timeout: 5s
       retries: 5
 
-  # --- Add other services below ---
-  # Example: Kafka (Complex - consider managed service or RabbitMQ for simplicity)
-  # zookeeper:
-  #   image: confluentinc/cp-zookeeper:latest
-  #   container_name: cauldron-zookeeper
-  #   environment:
-  #     ZOOKEEPER_CLIENT_PORT: 2181
-  #     ZOOKEEPER_TICK_TIME: 2000
-  #   networks:
-  #     - cauldron-net
-  #   restart: unless-stopped
+  redis-socketio:
+    image: redis:7-alpine
+    container_name: cauldron-redis-socketio
+    command: redis-server --save "" --maxmemory 128mb --maxmemory-policy allkeys-lru
+    networks:
+      - cauldron-net
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
-  # kafka:
-  #   image: confluentinc/cp-kafka:latest
-  #   container_name: cauldron-kafka
-  #   depends_on:
-  #     - zookeeper
-  #   ports:
-  #     - "9092:9092" # Internal port
-  #     # - "29092:29092" # Optional: External port if needed
-  #   environment:
-  #     KAFKA_BROKER_ID: 1
-  #     KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-  #     KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT #,PLAINTEXT_HOST:PLAINTEXT
-  #     KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092 #,PLAINTEXT_HOST://localhost:29092
-  #     KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
-  #     KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
-  #     # Add other Kafka settings
-  #   networks:
-  #     - cauldron-net
-  #   restart: unless-stopped
+  # --- Event-Driven Architecture (EDA) ---
+  # Using RabbitMQ for simplicity in development
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: cauldron-rabbitmq
+    ports:
+      - "5672:5672"  # AMQP port
+      - "15672:15672" # Management UI port
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-guest}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-guest}
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq/
+    networks:
+      - cauldron-net
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "check_port_connectivity"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
-  # Example: RabbitMQ (Simpler alternative for EDA)
-  # rabbitmq:
-  #   image: rabbitmq:3-management-alpine
-  #   container_name: cauldron-rabbitmq
-  #   ports:
-  #     - "5672:5672"  # AMQP port
-  #     - "15672:15672" # Management UI port
-  #   environment:
-  #     RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-guest}
-  #     RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-guest}
-  #   volumes:
-  #     - rabbitmq_data:/var/lib/rabbitmq/
-  #   networks:
-  #     - cauldron-net
-  #   restart: unless-stopped
+  # --- Workflow Automation ---
+  n8n:
+    image: n8nio/n8n:latest
+    container_name: cauldron-n8n
+    ports:
+      - "5678:5678"
+    environment:
+      - N8N_PORT=5678
+      - N8N_PROTOCOL=http
+      - N8N_HOST=localhost
+      - NODE_ENV=production
+      - WEBHOOK_URL=http://localhost:5678/
+      - GENERIC_TIMEZONE=UTC
+    volumes:
+      - n8n_data:/home/node/.n8n
+    networks:
+      - cauldron-net
+    restart: unless-stopped
+    depends_on:
+      - postgres
 
-  # Example: Qdrant (Vector DB - if self-hosting)
-  # qdrant:
-  #   image: qdrant/qdrant:latest
-  #   container_name: cauldron-qdrant
-  #   ports:
-  #     - "6333:6333" # REST API
-  #     - "6334:6334" # gRPC
-  #   volumes:
-  #     - qdrant_data:/qdrant/storage
-  #   networks:
-  #     - cauldron-net
-  #   restart: unless-stopped
+  # --- AI Agent Framework ---
+  superagi:
+    image: superagi/superagi:latest
+    container_name: cauldron-superagi
+    ports:
+      - "8080:8080"
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - HUGGINGFACE_TOKEN=${HUGGINGFACE_TOKEN:-}
+      - DATABASE_URL=postgresql://postgres:${DB_ROOT_PASSWORD:-please_change_in_env}@postgres:5432/superagi
+      - VECTOR_DB_URL=http://qdrant:6333
+    volumes:
+      - superagi_data:/app/data
+    networks:
+      - cauldron-net
+    restart: unless-stopped
+    depends_on:
+      - postgres
+      - qdrant
+      
+  # --- Agent Orchestration (AetherCore) ---
+  aethercore:
+    build:
+      context: ./aether_core
+      dockerfile: Dockerfile
+    container_name: cauldron-aethercore
+    ports:
+      - "8000:8000"
+    environment:
+      # Required environment variables
+      - DATABASE_URL=postgresql://postgres:${DB_ROOT_PASSWORD:-please_change_in_env}@postgres:5432/aethercore
+      - RABBITMQ_URL=amqp://${RABBITMQ_USER:-guest}:${RABBITMQ_PASSWORD:-guest}@rabbitmq:5672/
+      - SUPERAGI_API_URL=http://superagi:8080
+      - SUPERAGI_CONFIG_PATH=/app/config/superagi_config.json
+      - SUPERAGI_API_KEY=${SUPERAGI_API_KEY:-}
+      
+      # Optional environment variables
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - HUGGINGFACE_TOKEN=${HUGGINGFACE_TOKEN:-}
+      - DEBUG=${DEBUG:-True}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      
+      # Host and port configuration
+      - HOST=0.0.0.0
+      - PORT=8000
+    volumes:
+      - ./aether_core:/app/aether_core
+      - aethercore_data:/app/data
+      - aethercore_logs:/app/logs
+      - aethercore_config:/app/config
+    networks:
+      - cauldron-net
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      superagi:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.aethercore.rule=Host(`localhost`) && PathPrefix(`/api/aethercore`)"
+      - "traefik.http.services.aethercore.loadbalancer.server.port=8000"
+      - "traefik.http.middlewares.aethercore-strip.stripprefix.prefixes=/api/aethercore"
+      - "traefik.http.routers.aethercore.middlewares=aethercore-strip"
 
-  # Example: TimescaleDB (Time-Series DB - if self-hosting)
-  # timescaledb:
-  #   image: timescale/timescaledb:latest-pg15
-  #   container_name: cauldron-timescaledb
-  #   environment:
-  #     POSTGRES_PASSWORD: ${TIMESCALE_PASSWORD:-please_change_in_env}
-  #   volumes:
-  #     - timescaledb_data:/var/lib/postgresql/data
-  #   networks:
-  #     - cauldron-net
-  #   restart: unless-stopped
+  # --- API Gateway ---
+  traefik:
+    image: traefik:v2.9
+    container_name: cauldron-traefik
+    command:
+      - "--api.insecure=true"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+    ports:
+      - "80:80"
+      - "8081:8080" # Dashboard
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - cauldron-net
+    restart: unless-stopped
 
-  # Add other services: API Gateway (Kong/Traefik?), Backstage, n8n?
+  # --- Frontend UI (Manifold) ---
+  manifold-ui:
+    image: node:18-alpine
+    container_name: cauldron-manifold-ui
+    working_dir: /app
+    command: sh -c "yarn install && yarn start"
+    volumes:
+      - ./manifold:/app
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=development
+      - REACT_APP_API_URL=http://localhost:80
+    networks:
+      - cauldron-net
+    restart: unless-stopped
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.manifold.rule=Host(`localhost`) && PathPrefix(`/`)"
+      - "traefik.http.services.manifold.loadbalancer.server.port=3000"
+
+  # --- Frappe/ERPNext (will be set up via bench) ---
+  # This is a placeholder - actual Frappe/ERPNext setup is done via bench
+  # The setup_frappe.sh script will handle this part
 
 volumes:
   postgres_data:
     driver: local
-  # rabbitmq_data: # Uncomment if using RabbitMQ volume
-  #   driver: local
-  # qdrant_data: # Uncomment if using Qdrant volume
-  #   driver: local
-  # timescaledb_data: # Uncomment if using TimescaleDB volume
-  #   driver: local
+  qdrant_data:
+    driver: local
+  timescaledb_data:
+    driver: local
+  rabbitmq_data:
+    driver: local
+  n8n_data:
+    driver: local
+  superagi_data:
+    driver: local
+  aethercore_data:
+    driver: local
+  aethercore_logs:
+    driver: local
+  aethercore_config:
+    driver: local
 
 networks:
   cauldron-net:

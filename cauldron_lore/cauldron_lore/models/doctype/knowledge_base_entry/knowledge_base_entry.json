@@ -1,0 +1,367 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "format:KBE-{YYYY}-{MM}-{#####}",
+ "creation": "2023-07-15 00:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "title_section",
+  "title",
+  "knowledge_type",
+  "status",
+  "content_section",
+  "content",
+  "summary",
+  "embedding_status",
+  "categorization_section",
+  "categories",
+  "tags",
+  "related_entries",
+  "source_section",
+  "source_type",
+  "source_url",
+  "source_document",
+  "source_system",
+  "extracted_by_agent",
+  "metadata_section",
+  "created_by",
+  "creation_date",
+  "modified_by",
+  "modified_date",
+  "version",
+  "access_section",
+  "visibility",
+  "access_roles",
+  "access_teams",
+  "data_classification",
+  "integration_section",
+  "vector_id",
+  "chunk_ids",
+  "publish_to_mythos",
+  "mythos_event_topic",
+  "agent_section",
+  "agent_managed",
+  "managing_agent",
+  "last_agent_action",
+  "last_agent_action_date",
+  "agent_confidence",
+  "agent_notes"
+ ],
+ "fields": [
+  {
+   "fieldname": "title_section",
+   "fieldtype": "Section Break",
+   "label": "Title & Classification"
+  },
+  {
+   "fieldname": "title",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Title",
+   "reqd": 1
+  },
+  {
+   "fieldname": "knowledge_type",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Knowledge Type",
+   "options": "Concept\nProcess\nProcedure\nPolicy\nReference\nFAQ\nTroubleshooting\nBest Practice\nDefinition\nOther",
+   "reqd": 1
+  },
+  {
+   "default": "Draft",
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Status",
+   "options": "Draft\nReview\nPublished\nArchived\nDeprecated",
+   "reqd": 1
+  },
+  {
+   "fieldname": "content_section",
+   "fieldtype": "Section Break",
+   "label": "Content"
+  },
+  {
+   "fieldname": "content",
+   "fieldtype": "Text Editor",
+   "label": "Content",
+   "reqd": 1
+  },
+  {
+   "fieldname": "summary",
+   "fieldtype": "Small Text",
+   "label": "Summary"
+  },
+  {
+   "default": "Pending",
+   "fieldname": "embedding_status",
+   "fieldtype": "Select",
+   "label": "Embedding Status",
+   "options": "Pending\nProcessing\nComplete\nFailed\nOutdated",
+   "read_only": 1
+  },
+  {
+   "fieldname": "categorization_section",
+   "fieldtype": "Section Break",
+   "label": "Categorization"
+  },
+  {
+   "fieldname": "categories",
+   "fieldtype": "Table MultiSelect",
+   "label": "Categories",
+   "options": "Knowledge Category"
+  },
+  {
+   "fieldname": "tags",
+   "fieldtype": "Table MultiSelect",
+   "label": "Tags",
+   "options": "Knowledge Tag"
+  },
+  {
+   "fieldname": "related_entries",
+   "fieldtype": "Table MultiSelect",
+   "label": "Related Entries",
+   "options": "Related Knowledge Entry"
+  },
+  {
+   "fieldname": "source_section",
+   "fieldtype": "Section Break",
+   "label": "Source Information"
+  },
+  {
+   "fieldname": "source_type",
+   "fieldtype": "Select",
+   "label": "Source Type",
+   "options": "Manual Entry\nDocument Import\nWeb Import\nAgent Generated\nAPI Import\nOther"
+  },
+  {
+   "depends_on": "eval:doc.source_type == 'Web Import'",
+   "fieldname": "source_url",
+   "fieldtype": "Data",
+   "label": "Source URL"
+  },
+  {
+   "depends_on": "eval:doc.source_type == 'Document Import'",
+   "fieldname": "source_document",
+   "fieldtype": "Attach",
+   "label": "Source Document"
+  },
+  {
+   "fieldname": "source_system",
+   "fieldtype": "Data",
+   "label": "Source System"
+  },
+  {
+   "default": "0",
+   "fieldname": "extracted_by_agent",
+   "fieldtype": "Check",
+   "label": "Extracted By Agent"
+  },
+  {
+   "fieldname": "metadata_section",
+   "fieldtype": "Section Break",
+   "label": "Metadata"
+  },
+  {
+   "fieldname": "created_by",
+   "fieldtype": "Link",
+   "label": "Created By",
+   "options": "User",
+   "read_only": 1
+  },
+  {
+   "fieldname": "creation_date",
+   "fieldtype": "Datetime",
+   "label": "Creation Date",
+   "read_only": 1
+  },
+  {
+   "fieldname": "modified_by",
+   "fieldtype": "Link",
+   "label": "Modified By",
+   "options": "User",
+   "read_only": 1
+  },
+  {
+   "fieldname": "modified_date",
+   "fieldtype": "Datetime",
+   "label": "Modified Date",
+   "read_only": 1
+  },
+  {
+   "default": "1",
+   "fieldname": "version",
+   "fieldtype": "Int",
+   "label": "Version",
+   "read_only": 1
+  },
+  {
+   "fieldname": "access_section",
+   "fieldtype": "Section Break",
+   "label": "Access Control"
+  },
+  {
+   "default": "Internal",
+   "fieldname": "visibility",
+   "fieldtype": "Select",
+   "label": "Visibility",
+   "options": "Public\nInternal\nRestricted\nPrivate",
+   "reqd": 1
+  },
+  {
+   "fieldname": "access_roles",
+   "fieldtype": "Table MultiSelect",
+   "label": "Access Roles",
+   "options": "Knowledge Access Role"
+  },
+  {
+   "fieldname": "access_teams",
+   "fieldtype": "Table MultiSelect",
+   "label": "Access Teams",
+   "options": "Knowledge Access Team"
+  },
+  {
+   "default": "Internal",
+   "fieldname": "data_classification",
+   "fieldtype": "Select",
+   "label": "Data Classification",
+   "options": "Public\nInternal\nConfidential\nRestricted\nRegulated"
+  },
+  {
+   "fieldname": "integration_section",
+   "fieldtype": "Section Break",
+   "label": "Integration"
+  },
+  {
+   "fieldname": "vector_id",
+   "fieldtype": "Data",
+   "label": "Vector ID",
+   "read_only": 1
+  },
+  {
+   "fieldname": "chunk_ids",
+   "fieldtype": "Small Text",
+   "label": "Chunk IDs",
+   "read_only": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "publish_to_mythos",
+   "fieldtype": "Check",
+   "label": "Publish to Mythos"
+  },
+  {
+   "depends_on": "eval:doc.publish_to_mythos == 1",
+   "fieldname": "mythos_event_topic",
+   "fieldtype": "Data",
+   "label": "Mythos Event Topic"
+  },
+  {
+   "fieldname": "agent_section",
+   "fieldtype": "Section Break",
+   "label": "Agent Management"
+  },
+  {
+   "default": "0",
+   "fieldname": "agent_managed",
+   "fieldtype": "Check",
+   "label": "Agent Managed"
+  },
+  {
+   "depends_on": "eval:doc.agent_managed == 1",
+   "fieldname": "managing_agent",
+   "fieldtype": "Link",
+   "label": "Managing Agent",
+   "options": "Agent"
+  },
+  {
+   "depends_on": "eval:doc.agent_managed == 1",
+   "fieldname": "last_agent_action",
+   "fieldtype": "Data",
+   "label": "Last Agent Action",
+   "read_only": 1
+  },
+  {
+   "depends_on": "eval:doc.agent_managed == 1",
+   "fieldname": "last_agent_action_date",
+   "fieldtype": "Datetime",
+   "label": "Last Agent Action Date",
+   "read_only": 1
+  },
+  {
+   "depends_on": "eval:doc.agent_managed == 1",
+   "fieldname": "agent_confidence",
+   "fieldtype": "Float",
+   "label": "Agent Confidence",
+   "read_only": 1
+  },
+  {
+   "depends_on": "eval:doc.agent_managed == 1",
+   "fieldname": "agent_notes",
+   "fieldtype": "Small Text",
+   "label": "Agent Notes",
+   "read_only": 1
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2023-07-15 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Lore",
+ "name": "Knowledge Base Entry",
+ "naming_rule": "Expression",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Knowledge Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Knowledge Contributor",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Knowledge User",
+   "share": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}

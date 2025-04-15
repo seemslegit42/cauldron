@@ -1,0 +1,415 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "field:metric_name",
+ "creation": "2023-01-01 00:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "metric_name",
+  "metric_type",
+  "description",
+  "business_domain",
+  "calculation_section",
+  "calculation_method",
+  "formula",
+  "sql_query",
+  "python_function",
+  "data_source",
+  "source_field",
+  "aggregation_method",
+  "filter_criteria",
+  "time_dimension",
+  "dimensions",
+  "properties_section",
+  "unit_of_measure",
+  "format_string",
+  "decimal_places",
+  "is_percentage",
+  "is_currency",
+  "currency",
+  "thresholds_section",
+  "target_value",
+  "warning_threshold",
+  "critical_threshold",
+  "comparison_type",
+  "baseline_method",
+  "baseline_period",
+  "visualization_section",
+  "default_visualization",
+  "color_scheme",
+  "icon",
+  "show_in_dashboard",
+  "dashboard_priority",
+  "metadata_section",
+  "owner_user",
+  "owner_department",
+  "tags",
+  "related_metrics",
+  "is_active",
+  "created_date",
+  "modified_date",
+  "governance_section",
+  "data_classification",
+  "access_roles",
+  "audit_trail",
+  "integration_section",
+  "publish_to_mythos",
+  "mythos_event_topic",
+  "enable_anomaly_detection",
+  "enable_forecasting"
+ ],
+ "fields": [
+  {
+   "fieldname": "metric_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Metric Name",
+   "reqd": 1,
+   "unique": 1
+  },
+  {
+   "fieldname": "metric_type",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Metric Type",
+   "options": "KPI\nOperational Metric\nFinancial Metric\nCustomer Metric\nSupply Chain Metric\nHR Metric\nMarketing Metric\nSales Metric\nQuality Metric\nCustom",
+   "reqd": 1
+  },
+  {
+   "fieldname": "description",
+   "fieldtype": "Text Editor",
+   "label": "Description"
+  },
+  {
+   "fieldname": "business_domain",
+   "fieldtype": "Link",
+   "label": "Business Domain",
+   "options": "BusinessOntology"
+  },
+  {
+   "fieldname": "calculation_section",
+   "fieldtype": "Section Break",
+   "label": "Calculation"
+  },
+  {
+   "fieldname": "calculation_method",
+   "fieldtype": "Select",
+   "label": "Calculation Method",
+   "options": "Direct Field\nFormula\nSQL Query\nPython Function\nAPI\nComplex",
+   "reqd": 1
+  },
+  {
+   "depends_on": "eval:doc.calculation_method == 'Formula'",
+   "fieldname": "formula",
+   "fieldtype": "Code",
+   "label": "Formula",
+   "options": "Text"
+  },
+  {
+   "depends_on": "eval:doc.calculation_method == 'SQL Query'",
+   "fieldname": "sql_query",
+   "fieldtype": "Code",
+   "label": "SQL Query",
+   "options": "SQL"
+  },
+  {
+   "depends_on": "eval:doc.calculation_method == 'Python Function'",
+   "fieldname": "python_function",
+   "fieldtype": "Data",
+   "label": "Python Function"
+  },
+  {
+   "depends_on": "eval:doc.calculation_method == 'Direct Field'",
+   "fieldname": "data_source",
+   "fieldtype": "Link",
+   "label": "Data Source",
+   "options": "DataSource"
+  },
+  {
+   "depends_on": "eval:doc.calculation_method == 'Direct Field'",
+   "fieldname": "source_field",
+   "fieldtype": "Data",
+   "label": "Source Field"
+  },
+  {
+   "fieldname": "aggregation_method",
+   "fieldtype": "Select",
+   "label": "Aggregation Method",
+   "options": "Sum\nAverage\nCount\nMin\nMax\nMedian\nFirst\nLast\nDistinct Count\nPercentile\nCustom"
+  },
+  {
+   "fieldname": "filter_criteria",
+   "fieldtype": "Code",
+   "label": "Filter Criteria",
+   "options": "JSON"
+  },
+  {
+   "fieldname": "time_dimension",
+   "fieldtype": "Select",
+   "label": "Time Dimension",
+   "options": "None\nDaily\nWeekly\nMonthly\nQuarterly\nYearly\nCustom"
+  },
+  {
+   "fieldname": "dimensions",
+   "fieldtype": "Table",
+   "label": "Dimensions",
+   "options": "Metric Dimension"
+  },
+  {
+   "fieldname": "properties_section",
+   "fieldtype": "Section Break",
+   "label": "Properties"
+  },
+  {
+   "fieldname": "unit_of_measure",
+   "fieldtype": "Data",
+   "label": "Unit of Measure"
+  },
+  {
+   "fieldname": "format_string",
+   "fieldtype": "Data",
+   "label": "Format String"
+  },
+  {
+   "fieldname": "decimal_places",
+   "fieldtype": "Int",
+   "label": "Decimal Places"
+  },
+  {
+   "default": "0",
+   "fieldname": "is_percentage",
+   "fieldtype": "Check",
+   "label": "Is Percentage"
+  },
+  {
+   "default": "0",
+   "fieldname": "is_currency",
+   "fieldtype": "Check",
+   "label": "Is Currency"
+  },
+  {
+   "depends_on": "eval:doc.is_currency == 1",
+   "fieldname": "currency",
+   "fieldtype": "Link",
+   "label": "Currency",
+   "options": "Currency"
+  },
+  {
+   "fieldname": "thresholds_section",
+   "fieldtype": "Section Break",
+   "label": "Thresholds & Targets"
+  },
+  {
+   "fieldname": "target_value",
+   "fieldtype": "Float",
+   "label": "Target Value"
+  },
+  {
+   "fieldname": "warning_threshold",
+   "fieldtype": "Float",
+   "label": "Warning Threshold"
+  },
+  {
+   "fieldname": "critical_threshold",
+   "fieldtype": "Float",
+   "label": "Critical Threshold"
+  },
+  {
+   "fieldname": "comparison_type",
+   "fieldtype": "Select",
+   "label": "Comparison Type",
+   "options": "Higher is Better\nLower is Better\nCloser to Target is Better\nWithin Range is Better\nCustom"
+  },
+  {
+   "fieldname": "baseline_method",
+   "fieldtype": "Select",
+   "label": "Baseline Method",
+   "options": "None\nPrevious Period\nSame Period Last Year\nMoving Average\nFixed Value\nCustom"
+  },
+  {
+   "fieldname": "baseline_period",
+   "fieldtype": "Data",
+   "label": "Baseline Period"
+  },
+  {
+   "fieldname": "visualization_section",
+   "fieldtype": "Section Break",
+   "label": "Visualization"
+  },
+  {
+   "fieldname": "default_visualization",
+   "fieldtype": "Select",
+   "label": "Default Visualization",
+   "options": "Number\nLine Chart\nBar Chart\nPie Chart\nGauge\nHeatmap\nScatter Plot\nTable\nCustom"
+  },
+  {
+   "fieldname": "color_scheme",
+   "fieldtype": "Data",
+   "label": "Color Scheme"
+  },
+  {
+   "fieldname": "icon",
+   "fieldtype": "Data",
+   "label": "Icon"
+  },
+  {
+   "default": "0",
+   "fieldname": "show_in_dashboard",
+   "fieldtype": "Check",
+   "label": "Show in Dashboard"
+  },
+  {
+   "fieldname": "dashboard_priority",
+   "fieldtype": "Int",
+   "label": "Dashboard Priority"
+  },
+  {
+   "fieldname": "metadata_section",
+   "fieldtype": "Section Break",
+   "label": "Metadata"
+  },
+  {
+   "fieldname": "owner_user",
+   "fieldtype": "Link",
+   "label": "Owner User",
+   "options": "User"
+  },
+  {
+   "fieldname": "owner_department",
+   "fieldtype": "Link",
+   "label": "Owner Department",
+   "options": "Department"
+  },
+  {
+   "fieldname": "tags",
+   "fieldtype": "Data",
+   "label": "Tags"
+  },
+  {
+   "fieldname": "related_metrics",
+   "fieldtype": "Table MultiSelect",
+   "label": "Related Metrics",
+   "options": "Related Metric"
+  },
+  {
+   "default": "1",
+   "fieldname": "is_active",
+   "fieldtype": "Check",
+   "label": "Is Active"
+  },
+  {
+   "fieldname": "created_date",
+   "fieldtype": "Datetime",
+   "label": "Created Date",
+   "read_only": 1
+  },
+  {
+   "fieldname": "modified_date",
+   "fieldtype": "Datetime",
+   "label": "Modified Date",
+   "read_only": 1
+  },
+  {
+   "fieldname": "governance_section",
+   "fieldtype": "Section Break",
+   "label": "Governance"
+  },
+  {
+   "fieldname": "data_classification",
+   "fieldtype": "Select",
+   "label": "Data Classification",
+   "options": "Public\nInternal\nConfidential\nRestricted\nRegulated"
+  },
+  {
+   "fieldname": "access_roles",
+   "fieldtype": "Table MultiSelect",
+   "label": "Access Roles",
+   "options": "Role Permission"
+  },
+  {
+   "fieldname": "audit_trail",
+   "fieldtype": "Table",
+   "label": "Audit Trail",
+   "options": "Audit Log Entry",
+   "read_only": 1
+  },
+  {
+   "fieldname": "integration_section",
+   "fieldtype": "Section Break",
+   "label": "Integration"
+  },
+  {
+   "default": "0",
+   "fieldname": "publish_to_mythos",
+   "fieldtype": "Check",
+   "label": "Publish to Mythos"
+  },
+  {
+   "depends_on": "eval:doc.publish_to_mythos == 1",
+   "fieldname": "mythos_event_topic",
+   "fieldtype": "Data",
+   "label": "Mythos Event Topic"
+  },
+  {
+   "default": "0",
+   "fieldname": "enable_anomaly_detection",
+   "fieldtype": "Check",
+   "label": "Enable Anomaly Detection"
+  },
+  {
+   "default": "0",
+   "fieldname": "enable_forecasting",
+   "fieldtype": "Check",
+   "label": "Enable Forecasting"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2023-01-01 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Synapse",
+ "name": "AnalyticsMetric",
+ "naming_rule": "By fieldname",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Analytics Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Analytics User",
+   "share": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}

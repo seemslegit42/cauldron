@@ -1,0 +1,637 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "field:source_name",
+ "creation": "2023-01-01 00:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "source_name",
+  "source_type",
+  "description",
+  "connection_section",
+  "connection_type",
+  "connection_string",
+  "host",
+  "port",
+  "database_name",
+  "username",
+  "password",
+  "api_key",
+  "api_endpoint",
+  "authentication_method",
+  "file_path",
+  "file_format",
+  "data_settings_section",
+  "refresh_frequency",
+  "last_refresh",
+  "is_active",
+  "data_retention_period",
+  "incremental_load",
+  "incremental_key",
+  "metadata_section",
+  "schema_definition",
+  "data_dictionary",
+  "sample_data",
+  "tags",
+  "owner_user",
+  "owner_department",
+  "security_section",
+  "data_classification",
+  "requires_encryption",
+  "access_roles",
+  "integration_section",
+  "mythos_event_topic",
+  "publish_to_mythos",
+  "lore_integration",
+  "aegis_monitoring"
+ ],
+ "fields": [
+  {
+   "fieldname": "source_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Source Name",
+   "reqd": 1,
+   "unique": 1
+  },
+  {
+   "fieldname": "source_type",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Source Type",
+   "options": "Internal Frappe DocType\nExternal Database\nAPI\nFile\nEvent Stream\nOther",
+   "reqd": 1
+  },
+  {
+   "fieldname": "description",
+   "fieldtype": "Text Editor",
+   "label": "Description"
+  },
+  {
+   "fieldname": "connection_section",
+   "fieldtype": "Section Break",
+   "label": "Connection Details"
+  },
+  {
+   "fieldname": "connection_type",
+   "fieldtype": "Select",
+   "label": "Connection Type",
+   "options": "PostgreSQL\nMySQL\nMongoDB\nClickHouse\nTimescaleDB\nREST API\nGraphQL\nKafka\nRabbitMQ\nFile System\nFrappe DocType\nOther"
+  },
+  {
+   "fieldname": "connection_string",
+   "fieldtype": "Data",
+   "label": "Connection String"
+  },
+  {
+   "fieldname": "host",
+   "fieldtype": "Data",
+   "label": "Host"
+  },
+  {
+   "fieldname": "port",
+   "fieldtype": "Int",
+   "label": "Port"
+  },
+  {
+   "fieldname": "database_name",
+   "fieldtype": "Data",
+   "label": "Database Name"
+  },
+  {
+   "fieldname": "username",
+   "fieldtype": "Data",
+   "label": "Username"
+  },
+  {
+   "fieldname": "password",
+   "fieldtype": "Password",
+   "label": "Password"
+  },
+  {
+   "fieldname": "api_key",
+   "fieldtype": "Password",
+   "label": "API Key"
+  },
+  {
+   "fieldname": "api_endpoint",
+   "fieldtype": "Data",
+   "label": "API Endpoint"
+  },
+  {
+   "fieldname": "authentication_method",
+   "fieldtype": "Select",
+   "label": "Authentication Method",
+   "options": "None\nBasic Auth\nAPI Key\nOAuth2\nJWT\nCustom"
+  },
+  {
+   "fieldname": "file_path",
+   "fieldtype": "Data",
+   "label": "File Path"
+  },
+  {
+   "fieldname": "file_format",
+   "fieldtype": "Select",
+   "label": "File Format",
+   "options": "CSV\nJSON\nXML\nExcel\nParquet\nAvro\nORC\nOther"
+  },
+  {
+   "fieldname": "data_settings_section",
+   "fieldtype": "Section Break",
+   "label": "Data Settings"
+  },
+  {
+   "fieldname": "refresh_frequency",
+   "fieldtype": "Select",
+   "label": "Refresh Frequency",
+   "options": "Real-time\nMinutely\nHourly\nDaily\nWeekly\nMonthly\nQuarterly\nYearly\nManual"
+  },
+  {
+   "fieldname": "last_refresh",
+   "fieldtype": "Datetime",
+   "label": "Last Refresh",
+   "read_only": 1
+  },
+  {
+   "default": "1",
+   "fieldname": "is_active",
+   "fieldtype": "Check",
+   "label": "Is Active"
+  },
+  {
+   "fieldname": "data_retention_period",
+   "fieldtype": "Int",
+   "label": "Data Retention Period (Days)"
+  },
+  {
+   "default": "0",
+   "fieldname": "incremental_load",
+   "fieldtype": "Check",
+   "label": "Incremental Load"
+  },
+  {
+   "depends_on": "eval:doc.incremental_load == 1",
+   "fieldname": "incremental_key",
+   "fieldtype": "Data",
+   "label": "Incremental Key"
+  },
+  {
+   "fieldname": "metadata_section",
+   "fieldtype": "Section Break",
+   "label": "Metadata"
+  },
+  {
+   "fieldname": "schema_definition",
+   "fieldtype": "Code",
+   "label": "Schema Definition",
+   "options": "JSON"
+  },
+  {
+   "fieldname": "data_dictionary",
+   "fieldtype": "Table",
+   "label": "Data Dictionary",
+   "options": "Data Dictionary Entry"
+  },
+  {
+   "fieldname": "sample_data",
+   "fieldtype": "Code",
+   "label": "Sample Data",
+   "options": "JSON"
+  },
+  {
+   "fieldname": "tags",
+   "fieldtype": "Data",
+   "label": "Tags"
+  },
+  {
+   "fieldname": "owner_user",
+   "fieldtype": "Link",
+   "label": "Owner User",
+   "options": "User"
+  },
+  {
+   "fieldname": "owner_department",
+   "fieldtype": "Link",
+   "label": "Owner Department",
+   "options": "Department"
+  },
+  {
+   "fieldname": "security_section",
+   "fieldtype": "Section Break",
+   "label": "Security & Governance"
+  },
+  {
+   "fieldname": "data_classification",
+   "fieldtype": "Select",
+   "label": "Data Classification",
+   "options": "Public\nInternal\nConfidential\nRestricted\nRegulated"
+  },
+  {
+   "default": "0",
+   "fieldname": "requires_encryption",
+   "fieldtype": "Check",
+   "label": "Requires Encryption"
+  },
+  {
+   "fieldname": "access_roles",
+   "fieldtype": "Table MultiSelect",
+   "label": "Access Roles",
+   "options": "Role Permission"
+  },
+  {
+   "fieldname": "integration_section",
+   "fieldtype": "Section Break",
+   "label": "Integration"
+  },
+  {
+   "fieldname": "mythos_event_topic",
+   "fieldtype": "Data",
+   "label": "Mythos Event Topic"
+  },
+  {
+   "default": "0",
+   "fieldname": "publish_to_mythos",
+   "fieldtype": "Check",
+   "label": "Publish to Mythos"
+  },
+  {
+   "default": "0",
+   "fieldname": "lore_integration",
+   "fieldtype": "Check",
+   "label": "Lore Integration"
+  },
+  {
+   "default": "0",
+   "fieldname": "aegis_monitoring",
+   "fieldtype": "Check",
+   "label": "Aegis Monitoring"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2023-01-01 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Synapse",
+ "name": "DataSource",
+ "naming_rule": "By fieldname",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Analytics Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Analytics User",
+   "share": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "field:source_name",
+ "creation": "2023-01-01 00:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "source_name",
+  "source_type",
+  "description",
+  "connection_section",
+  "connection_type",
+  "connection_string",
+  "host",
+  "port",
+  "database_name",
+  "username",
+  "password",
+  "api_key",
+  "api_endpoint",
+  "authentication_method",
+  "file_path",
+  "file_format",
+  "data_settings_section",
+  "refresh_frequency",
+  "last_refresh",
+  "is_active",
+  "data_retention_period",
+  "incremental_load",
+  "incremental_key",
+  "metadata_section",
+  "schema_definition",
+  "data_dictionary",
+  "sample_data",
+  "tags",
+  "owner_user",
+  "owner_department",
+  "security_section",
+  "data_classification",
+  "requires_encryption",
+  "access_roles",
+  "integration_section",
+  "mythos_event_topic",
+  "publish_to_mythos",
+  "lore_integration",
+  "aegis_monitoring"
+ ],
+ "fields": [
+  {
+   "fieldname": "source_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Source Name",
+   "reqd": 1,
+   "unique": 1
+  },
+  {
+   "fieldname": "source_type",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Source Type",
+   "options": "Internal Frappe DocType\nExternal Database\nAPI\nFile\nEvent Stream\nOther",
+   "reqd": 1
+  },
+  {
+   "fieldname": "description",
+   "fieldtype": "Text Editor",
+   "label": "Description"
+  },
+  {
+   "fieldname": "connection_section",
+   "fieldtype": "Section Break",
+   "label": "Connection Details"
+  },
+  {
+   "fieldname": "connection_type",
+   "fieldtype": "Select",
+   "label": "Connection Type",
+   "options": "PostgreSQL\nMySQL\nMongoDB\nClickHouse\nTimescaleDB\nREST API\nGraphQL\nKafka\nRabbitMQ\nFile System\nFrappe DocType\nOther"
+  },
+  {
+   "fieldname": "connection_string",
+   "fieldtype": "Data",
+   "label": "Connection String"
+  },
+  {
+   "fieldname": "host",
+   "fieldtype": "Data",
+   "label": "Host"
+  },
+  {
+   "fieldname": "port",
+   "fieldtype": "Int",
+   "label": "Port"
+  },
+  {
+   "fieldname": "database_name",
+   "fieldtype": "Data",
+   "label": "Database Name"
+  },
+  {
+   "fieldname": "username",
+   "fieldtype": "Data",
+   "label": "Username"
+  },
+  {
+   "fieldname": "password",
+   "fieldtype": "Password",
+   "label": "Password"
+  },
+  {
+   "fieldname": "api_key",
+   "fieldtype": "Password",
+   "label": "API Key"
+  },
+  {
+   "fieldname": "api_endpoint",
+   "fieldtype": "Data",
+   "label": "API Endpoint"
+  },
+  {
+   "fieldname": "authentication_method",
+   "fieldtype": "Select",
+   "label": "Authentication Method",
+   "options": "None\nBasic Auth\nAPI Key\nOAuth2\nJWT\nCustom"
+  },
+  {
+   "fieldname": "file_path",
+   "fieldtype": "Data",
+   "label": "File Path"
+  },
+  {
+   "fieldname": "file_format",
+   "fieldtype": "Select",
+   "label": "File Format",
+   "options": "CSV\nJSON\nXML\nExcel\nParquet\nAvro\nORC\nOther"
+  },
+  {
+   "fieldname": "data_settings_section",
+   "fieldtype": "Section Break",
+   "label": "Data Settings"
+  },
+  {
+   "fieldname": "refresh_frequency",
+   "fieldtype": "Select",
+   "label": "Refresh Frequency",
+   "options": "Real-time\nMinutely\nHourly\nDaily\nWeekly\nMonthly\nQuarterly\nYearly\nManual"
+  },
+  {
+   "fieldname": "last_refresh",
+   "fieldtype": "Datetime",
+   "label": "Last Refresh",
+   "read_only": 1
+  },
+  {
+   "default": "1",
+   "fieldname": "is_active",
+   "fieldtype": "Check",
+   "label": "Is Active"
+  },
+  {
+   "fieldname": "data_retention_period",
+   "fieldtype": "Int",
+   "label": "Data Retention Period (Days)"
+  },
+  {
+   "default": "0",
+   "fieldname": "incremental_load",
+   "fieldtype": "Check",
+   "label": "Incremental Load"
+  },
+  {
+   "depends_on": "eval:doc.incremental_load == 1",
+   "fieldname": "incremental_key",
+   "fieldtype": "Data",
+   "label": "Incremental Key"
+  },
+  {
+   "fieldname": "metadata_section",
+   "fieldtype": "Section Break",
+   "label": "Metadata"
+  },
+  {
+   "fieldname": "schema_definition",
+   "fieldtype": "Code",
+   "label": "Schema Definition",
+   "options": "JSON"
+  },
+  {
+   "fieldname": "data_dictionary",
+   "fieldtype": "Table",
+   "label": "Data Dictionary",
+   "options": "Data Dictionary Entry"
+  },
+  {
+   "fieldname": "sample_data",
+   "fieldtype": "Code",
+   "label": "Sample Data",
+   "options": "JSON"
+  },
+  {
+   "fieldname": "tags",
+   "fieldtype": "Data",
+   "label": "Tags"
+  },
+  {
+   "fieldname": "owner_user",
+   "fieldtype": "Link",
+   "label": "Owner User",
+   "options": "User"
+  },
+  {
+   "fieldname": "owner_department",
+   "fieldtype": "Link",
+   "label": "Owner Department",
+   "options": "Department"
+  },
+  {
+   "fieldname": "security_section",
+   "fieldtype": "Section Break",
+   "label": "Security & Governance"
+  },
+  {
+   "fieldname": "data_classification",
+   "fieldtype": "Select",
+   "label": "Data Classification",
+   "options": "Public\nInternal\nConfidential\nRestricted\nRegulated"
+  },
+  {
+   "default": "0",
+   "fieldname": "requires_encryption",
+   "fieldtype": "Check",
+   "label": "Requires Encryption"
+  },
+  {
+   "fieldname": "access_roles",
+   "fieldtype": "Table MultiSelect",
+   "label": "Access Roles",
+   "options": "Role Permission"
+  },
+  {
+   "fieldname": "integration_section",
+   "fieldtype": "Section Break",
+   "label": "Integration"
+  },
+  {
+   "fieldname": "mythos_event_topic",
+   "fieldtype": "Data",
+   "label": "Mythos Event Topic"
+  },
+  {
+   "default": "0",
+   "fieldname": "publish_to_mythos",
+   "fieldtype": "Check",
+   "label": "Publish to Mythos"
+  },
+  {
+   "default": "0",
+   "fieldname": "lore_integration",
+   "fieldtype": "Check",
+   "label": "Lore Integration"
+  },
+  {
+   "default": "0",
+   "fieldname": "aegis_monitoring",
+   "fieldtype": "Check",
+   "label": "Aegis Monitoring"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2023-01-01 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Synapse",
+ "name": "DataSource",
+ "naming_rule": "By fieldname",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Analytics Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Analytics User",
+   "share": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}

@@ -1,0 +1,102 @@
+{
+  "name": "Cauldron™ sEOS Development Environment",
+  
+  // Use the base image with essential tools
+  "image": "mcr.microsoft.com/devcontainers/python:3.11-bullseye",
+  
+  // Enable Docker-in-Docker for container management
+  "features": {
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {
+      "version": "latest",
+      "moby": true
+    },
+    "ghcr.io/devcontainers/features/node:1": {
+      "version": "18"
+    },
+    "ghcr.io/devcontainers/features/python:1": {
+      "version": "3.11",
+      "installPipx": true
+    },
+    "ghcr.io/devcontainers/features/git:1": {},
+    "ghcr.io/devcontainers-contrib/features/postgresql-client:1": {}
+  },
+  
+  // Mount the Docker socket to enable Docker commands
+  "mounts": [
+    "source=/var/run/docker.sock,target=/var/run/docker.sock,type=bind"
+  ],
+  
+  // Forward ports for various services
+  "forwardPorts": [
+    8000,  // Frappe/ERPNext
+    3000,  // Manifold UI (React)
+    5432,  // PostgreSQL
+    6379,  // Redis
+    9092,  // Kafka (if used)
+    5672,  // RabbitMQ (if used)
+    15672, // RabbitMQ Management UI
+    6333,  // Vector DB (Qdrant)
+    8080   // SuperAGI
+  ],
+  
+  "portsAttributes": {
+    "8000": { "label": "Frappe/ERPNext" },
+    "3000": { "label": "Manifold UI" },
+    "5432": { "label": "PostgreSQL" },
+    "6379": { "label": "Redis" },
+    "9092": { "label": "Kafka" },
+    "5672": { "label": "RabbitMQ" },
+    "15672": { "label": "RabbitMQ UI" },
+    "6333": { "label": "Vector DB" },
+    "8080": { "label": "SuperAGI" }
+  },
+  
+  // Install system dependencies
+  "onCreateCommand": "sudo apt-get update && sudo apt-get install -y --no-install-recommends wkhtmltopdf mariadb-client-10.5 xvfb libfontconfig fonts-cantarell && sudo rm -rf /var/lib/apt/lists/*",
+  
+  // Install development tools and set up the project
+  "postCreateCommand": "pipx install frappe-bench && npm install -g yarn pnpm && chmod +x /workspaces/cauldron/scripts/setup_frappe.sh",
+  
+  // VS Code settings and extensions
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-python.python",
+        "ms-python.vscode-pylance",
+        "ms-azuretools.vscode-docker",
+        "esbenp.prettier-vscode",
+        "dbaeumer.vscode-eslint",
+        "redhat.vscode-yaml",
+        "VisualStudioExptTeam.vscodeintellicode",
+        "github.vscode-github-actions",
+        "ms-python.black-formatter",
+        "ms-python.flake8",
+        "ms-python.isort",
+        "bradlc.vscode-tailwindcss",
+        "dsznajder.es7-react-js-snippets",
+        "mikestead.dotenv"
+      ],
+      "settings": {
+        "python.defaultInterpreterPath": "/usr/local/bin/python",
+        "python.linting.enabled": true,
+        "python.linting.flake8Enabled": true,
+        "python.formatting.provider": "black",
+        "editor.formatOnSave": true,
+        "[python]": {
+          "editor.defaultFormatter": "ms-python.black-formatter",
+          "editor.codeActionsOnSave": {
+            "source.organizeImports": "explicit"
+          }
+        },
+        "[javascript][typescript][javascriptreact][typescriptreact]": {
+          "editor.defaultFormatter": "esbenp.prettier-vscode"
+        },
+        "files.eol": "\n",
+        "terminal.integrated.defaultProfile.linux": "bash"
+      }
+    }
+  },
+  
+  // Use the non-root user for better security
+  "remoteUser": "vscode"
+}
