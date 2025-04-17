@@ -1,0 +1,61 @@
+# Development environment values for cauldron-frappe
+
+global:
+  environment: dev
+
+# Frappe configuration for development
+frappe:
+  # Resource configuration for development
+  resources:
+    web:
+      requests:
+        memory: "256Mi"
+        cpu: "100m"
+      limits:
+        memory: "512Mi"
+        cpu: "250m"
+    worker:
+      requests:
+        memory: "256Mi"
+        cpu: "100m"
+      limits:
+        memory: "512Mi"
+        cpu: "250m"
+    scheduler:
+      requests:
+        memory: "128Mi"
+        cpu: "50m"
+      limits:
+        memory: "256Mi"
+        cpu: "100m"
+    socketio:
+      requests:
+        memory: "128Mi"
+        cpu: "50m"
+      limits:
+        memory: "256Mi"
+        cpu: "100m"
+  
+  # Persistence configuration for development
+  persistence:
+    size: 5Gi
+  
+  # Replica configuration for development
+  replicas:
+    web: 1
+    worker: 1
+    scheduler: 1
+    socketio: 1
+  
+  # Ingress configuration for development
+  ingress:
+    enabled: true
+    hosts:
+      - host: cauldron.local
+        paths:
+          - path: /
+            pathType: Prefix
+  
+  # Bench configuration for development
+  bench:
+    developerMode: true

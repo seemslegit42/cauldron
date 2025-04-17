@@ -1,0 +1,29 @@
+{{- if .Values.manifold.networkPolicy.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "cauldron-manifold.fullname" . }}-network-policy
+  labels:
+    {{- include "cauldron-manifold.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "cauldron-manifold.selectorLabels" . | nindent 6 }}
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  {{- range .Values.manifold.networkPolicy.ingressRules }}
+  - from:
+    {{- toYaml .from | nindent 4 }}
+    ports:
+    {{- toYaml .ports | nindent 4 }}
+  {{- end }}
+  egress:
+  {{- range .Values.manifold.networkPolicy.egressRules }}
+  - to:
+    {{- toYaml .to | nindent 4 }}
+    ports:
+    {{- toYaml .ports | nindent 4 }}
+  {{- end }}
+{{- end }}

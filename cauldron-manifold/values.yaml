@@ -1,0 +1,121 @@
+# Default values for cauldron-manifold
+# This is a YAML-formatted file.
+
+# Global settings
+global:
+  # Environment name (dev, staging, prod)
+  environment: dev
+  
+  # Storage class for persistent volumes
+  storageClass: ""
+  
+  # Image pull policy
+  imagePullPolicy: IfNotPresent
+  
+  # Common labels to apply to all resources
+  labels:
+    app.kubernetes.io/part-of: cauldron-seos
+    app.kubernetes.io/managed-by: helm
+
+# Manifold UI configuration
+manifold:
+  # Image configuration
+  image:
+    repository: cauldron/manifold-ui
+    tag: "latest"
+    pullPolicy: IfNotPresent
+  
+  # Resource configuration
+  resources:
+    requests:
+      memory: "128Mi"
+      cpu: "100m"
+    limits:
+      memory: "256Mi"
+      cpu: "200m"
+  
+  # Replica configuration
+  replicas: 1
+  
+  # Service configuration
+  service:
+    type: ClusterIP
+    port: 80
+    targetPort: 80
+  
+  # Ingress configuration
+  ingress:
+    enabled: true
+    className: "traefik"
+    annotations:
+      traefik.ingress.kubernetes.io/router.entrypoints: web
+    hosts:
+      - host: cauldron.local
+        paths:
+          - path: /
+            pathType: Prefix
+    tls: []
+  
+  # API configuration
+  api:
+    url: "/api"
+  
+  # Health check configuration
+  livenessProbe:
+    enabled: true
+    initialDelaySeconds: 30
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 3
+    successThreshold: 1
+  
+  readinessProbe:
+    enabled: true
+    initialDelaySeconds: 5
+    periodSeconds: 5
+    timeoutSeconds: 3
+    failureThreshold: 1
+    successThreshold: 1
+  
+  # Horizontal Pod Autoscaler configuration
+  autoscaling:
+    enabled: false
+    minReplicas: 1
+    maxReplicas: 5
+    targetCPUUtilizationPercentage: 80
+    targetMemoryUtilizationPercentage: 80
+  
+  # Network policy configuration
+  networkPolicy:
+    enabled: true
+    ingressRules:
+      - from:
+          - podSelector:
+              matchLabels:
+                app.kubernetes.io/name: traefik
+        ports:
+          - protocol: TCP
+            port: 80
+    egressRules:
+      - to:
+          - podSelector:
+              matchLabels:
+                app.kubernetes.io/name: traefik
+        ports:
+          - protocol: TCP
+            port: 80
+      - to:
+          - namespaceSelector:
+              matchLabels:
+                kubernetes.io/metadata.name: kube-system
+            podSelector:
+              matchLabels:
+                k8s-app: kube-dns
+        ports:
+          - protocol: UDP
+            port: 53
+          - protocol: TCP
+            port: 53
+  
+  # Additional environment variables
+  extraEnv: []

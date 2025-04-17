@@ -1,0 +1,158 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "cauldron-frappe.configmap.name" . }}
+  labels:
+    {{- include "cauldron-frappe.labels" . | nindent 4 }}
+data:
+  common_site_config.json: |-
+    {
+      "db_host": "{{ .Values.frappe.db.host }}",
+      "db_port": {{ .Values.frappe.db.port }},
+      "redis_cache": "redis://{{ .Values.frappe.redis.cacheHost }}:{{ .Values.frappe.redis.port }}/0",
+      "redis_queue": "redis://{{ .Values.frappe.redis.queueHost }}:{{ .Values.frappe.redis.port }}/1",
+      "redis_socketio": "redis://{{ .Values.frappe.redis.socketioHost }}:{{ .Values.frappe.redis.port }}/2",
+      "socketio_port": {{ .Values.frappe.service.socketioPort }},
+      "webserver_port": {{ .Values.frappe.service.webPort }},
+      "developer_mode": {{ .Values.frappe.bench.developerMode }},
+      "serve_default_site": {{ .Values.frappe.bench.serveDefaultSite }},
+      "auto_update": {{ .Values.frappe.bench.autoUpdate }},
+      "frappe_user": "frappe",
+      "shallow_clone": {{ .Values.frappe.bench.shallowClone }}
+    }
+  
+  entrypoint.sh: |-
+    #!/bin/bash
+    set -e
+
+    # Function to log messages
+    log() {
+        echo "[$(date +'%Y-%m-%d %H:%M:%S')] $1"
+    }
+
+    # Wait for PostgreSQL to be ready
+    wait_for_postgres() {
+        log "Waiting for PostgreSQL to be ready..."
+        until PGPASSWORD=${DB_PASSWORD} psql -h ${DB_HOST} -p ${DB_PORT} -U ${DB_USER} -c '\q'; do
+            log "PostgreSQL is unavailable - sleeping"
+            sleep 2
+        done
+        log "PostgreSQL is up - continuing"
+    }
+
+    # Wait for Redis to be ready
+    wait_for_redis() {
+        local host=$1
+        local port=$2
+        log "Waiting for Redis at ${host}:${port} to be ready..."
+        until redis-cli -h ${host} -p ${port} ping; do
+            log "Redis at ${host}:${port} is unavailable - sleeping"
+            sleep 2
+        done
+        log "Redis at ${host}:${port} is up - continuing"
+    }
+
+    # Main execution
+    log "Starting Frappe container..."
+
+    # Check if site exists, if not create it
+    if [ ! -f sites/${SITE_NAME}/site_config.json ]; then
+        log "Creating new site: ${SITE_NAME}"
+        bench new-site ${SITE_NAME} \
+            --admin-password ${ADMIN_PASSWORD} \
+            --db-host ${DB_HOST} \
+            --db-name ${DB_NAME} \
+            --db-password ${DB_PASSWORD} \
+            --db-type postgres \
+            --no-mariadb-socket
+        
+        # Install ERPNext and other standard apps
+        for app in ${STANDARD_APPS}; do
+            IFS=':' read -r app_name app_branch <<< "${app}"
+            log "Getting app: ${app_name} (branch: ${app_branch})"
+            bench get-app --branch ${app_branch} ${app_name} || log "Failed to get app ${app_name}"
+            log "Installing app: ${app_name}"
+            bench --site ${SITE_NAME} install-app ${app_name} || log "Failed to install app ${app_name}"
+        done
+        
+        # Install custom Cauldron apps
+        for app in ${CUSTOM_APPS}; do
+            IFS=':' read -r app_name app_repo app_branch <<< "${app}"
+            if [ ! -d apps/${app_name} ]; then
+                log "Getting custom app: ${app_name} (repo: ${app_repo}, branch: ${app_branch})"
+                bench get-app --branch ${app_branch} ${app_name} ${app_repo} || log "Failed to get custom app ${app_name}"
+                log "Installing custom app: ${app_name}"
+                bench --site ${SITE_NAME} install-app ${app_name} || log "Failed to install custom app ${app_name}"
+            fi
+        done
+        
+        log "Site setup completed."
+    else
+        log "Site ${SITE_NAME} already exists."
+        log "Running migrations..."
+        bench --site ${SITE_NAME} migrate || log "Migration failed, continuing..."
+    fi
+
+    # Set site as default
+    bench use ${SITE_NAME}
+
+    # Execute the command passed to docker
+    log "Executing command: $@"
+    exec "$@"
+  
+  worker-entrypoint.sh: |-
+    #!/bin/bash
+    set -e
+
+    # Function to log messages
+    log() {
+        echo "[$(date +'%Y-%m-%d %H:%M:%S')] $1"
+    }
+
+    # Main execution
+    log "Starting Frappe worker..."
+
+    # Set site as default
+    bench use ${SITE_NAME}
+
+    # Start the worker
+    log "Starting worker with queues: ${WORKER_QUEUES}"
+    exec bench worker --queue ${WORKER_QUEUES}
+  
+  scheduler-entrypoint.sh: |-
+    #!/bin/bash
+    set -e
+
+    # Function to log messages
+    log() {
+        echo "[$(date +'%Y-%m-%d %H:%M:%S')] $1"
+    }
+
+    # Main execution
+    log "Starting Frappe scheduler..."
+
+    # Set site as default
+    bench use ${SITE_NAME}
+
+    # Start the scheduler
+    log "Starting scheduler"
+    exec bench schedule
+  
+  socketio-entrypoint.sh: |-
+    #!/bin/bash
+    set -e
+
+    # Function to log messages
+    log() {
+        echo "[$(date +'%Y-%m-%d %H:%M:%S')] $1"
+    }
+
+    # Main execution
+    log "Starting Frappe Socket.IO server..."
+
+    # Set site as default
+    bench use ${SITE_NAME}
+
+    # Start the Socket.IO server
+    log "Starting Socket.IO server"
+    exec node /home/frappe/frappe-bench/apps/frappe/socketio.js

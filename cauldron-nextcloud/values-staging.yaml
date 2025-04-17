@@ -1,0 +1,49 @@
+# Staging environment values for cauldron-nextcloud
+
+global:
+  environment: staging
+
+# Nextcloud configuration for staging
+nextcloud:
+  # Resource configuration for staging
+  resources:
+    requests:
+      memory: "1Gi"
+      cpu: "500m"
+    limits:
+      memory: "2Gi"
+      cpu: "1000m"
+  
+  # Persistence configuration for staging
+  persistence:
+    size: 20Gi
+  
+  # Replica configuration for staging
+  replicas: 2
+  
+  # Ingress configuration for staging
+  ingress:
+    enabled: true
+    annotations:
+      kubernetes.io/ingress.class: traefik
+      traefik.ingress.kubernetes.io/router.entrypoints: websecure
+      cert-manager.io/cluster-issuer: letsencrypt-staging
+    hosts:
+      - host: nextcloud-staging.cauldron.ai
+        paths:
+          - path: /
+            pathType: Prefix
+    tls:
+      - secretName: nextcloud-staging-tls
+        hosts:
+          - nextcloud-staging.cauldron.ai
+  
+  # PHP configuration for staging
+  php:
+    memoryLimit: "512M"
+    uploadMaxFilesize: "1G"
+    postMaxSize: "1G"
+  
+  # Additional configuration for staging
+  config:
+    debug: false

@@ -1,0 +1,51 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: rabbitmq-network-policy
+  namespace: cauldron
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: rabbitmq
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  # Allow AMQP connections from services that need to communicate via the event bus
+  - from:
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/part-of: cauldron-seos
+    ports:
+    - protocol: TCP
+      port: 5672
+  # Allow management UI access from internal services only
+  - from:
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/part-of: cauldron-seos
+    ports:
+    - protocol: TCP
+      port: 15672
+  egress:
+  # Allow DNS resolution
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: kube-system
+      podSelector:
+        matchLabels:
+          k8s-app: kube-dns
+    ports:
+    - protocol: UDP
+      port: 53
+    - protocol: TCP
+      port: 53
+  # Allow metrics to be scraped
+  - to:
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/name: prometheus
+    ports:
+    - protocol: TCP
+      port: 9090

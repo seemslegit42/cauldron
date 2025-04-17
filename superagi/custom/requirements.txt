@@ -1,0 +1,25 @@
+# Cauldron-specific dependencies for SuperAGI
+
+# Integration with Frappe/ERPNext
+frappe-client==0.1.0
+
+# Integration with RabbitMQ for event-driven architecture
+pika==1.3.2
+
+# Integration with Qdrant for vector storage
+qdrant-client==1.6.4
+
+# Additional LLM providers
+anthropic==0.5.0
+cohere==4.32
+huggingface-hub==0.16.4
+
+# Monitoring and observability
+prometheus-client==0.17.1
+opentelemetry-api==1.20.0
+opentelemetry-sdk==1.20.0
+opentelemetry-exporter-otlp==1.20.0
+
+# Utilities
+python-dotenv==1.0.0
+pydantic==1.10.8  # Match SuperAGI version for compatibility

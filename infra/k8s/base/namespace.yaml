@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: cauldron
+  labels:
+    name: cauldron
+    part-of: cauldron-seos

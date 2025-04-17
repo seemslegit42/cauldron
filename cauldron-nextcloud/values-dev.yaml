@@ -1,0 +1,41 @@
+# Development environment values for cauldron-nextcloud
+
+global:
+  environment: dev
+
+# Nextcloud configuration for development
+nextcloud:
+  # Resource configuration for development
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "100m"
+    limits:
+      memory: "512Mi"
+      cpu: "250m"
+  
+  # Persistence configuration for development
+  persistence:
+    size: 5Gi
+  
+  # Replica configuration for development
+  replicas: 1
+  
+  # Ingress configuration for development
+  ingress:
+    enabled: true
+    hosts:
+      - host: nextcloud.cauldron.local
+        paths:
+          - path: /
+            pathType: Prefix
+  
+  # PHP configuration for development
+  php:
+    memoryLimit: "256M"
+    uploadMaxFilesize: "512M"
+    postMaxSize: "512M"
+  
+  # Additional configuration for development
+  config:
+    debug: true

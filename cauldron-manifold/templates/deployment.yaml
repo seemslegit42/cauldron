@@ -1,0 +1,65 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "cauldron-manifold.fullname" . }}
+  labels:
+    {{- include "cauldron-manifold.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.manifold.autoscaling.enabled }}
+  replicas: {{ .Values.manifold.replicas }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "cauldron-manifold.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "cauldron-manifold.selectorLabels" . | nindent 8 }}
+    spec:
+      containers:
+        - name: {{ .Chart.Name }}
+          image: "{{ .Values.manifold.image.repository }}:{{ .Values.manifold.image.tag }}"
+          imagePullPolicy: {{ .Values.manifold.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 80
+              protocol: TCP
+          env:
+            - name: REACT_APP_API_URL
+              value: {{ .Values.manifold.api.url }}
+            {{- range .Values.manifold.extraEnv }}
+            - name: {{ .name }}
+              value: {{ .value | quote }}
+            {{- end }}
+          volumeMounts:
+            - name: nginx-config
+              mountPath: /etc/nginx/conf.d/default.conf
+              subPath: nginx.conf
+          resources:
+            {{- toYaml .Values.manifold.resources | nindent 12 }}
+          {{- if .Values.manifold.livenessProbe.enabled }}
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: {{ .Values.manifold.livenessProbe.initialDelaySeconds }}
+            periodSeconds: {{ .Values.manifold.livenessProbe.periodSeconds }}
+            timeoutSeconds: {{ .Values.manifold.livenessProbe.timeoutSeconds }}
+            failureThreshold: {{ .Values.manifold.livenessProbe.failureThreshold }}
+            successThreshold: {{ .Values.manifold.livenessProbe.successThreshold }}
+          {{- end }}
+          {{- if .Values.manifold.readinessProbe.enabled }}
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: {{ .Values.manifold.readinessProbe.initialDelaySeconds }}
+            periodSeconds: {{ .Values.manifold.readinessProbe.periodSeconds }}
+            timeoutSeconds: {{ .Values.manifold.readinessProbe.timeoutSeconds }}
+            failureThreshold: {{ .Values.manifold.readinessProbe.failureThreshold }}
+            successThreshold: {{ .Values.manifold.readinessProbe.successThreshold }}
+          {{- end }}
+      volumes:
+        - name: nginx-config
+          configMap:
+            name: {{ include "cauldron-manifold.configMapName" . }}

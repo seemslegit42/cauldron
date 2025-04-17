@@ -1,0 +1,285 @@
+name: Build Frappe Docker Images
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+    paths:
+      - 'frappe/**'
+      - '.github/workflows/build-frappe-images.yml'
+  pull_request:
+    paths:
+      - 'frappe/**'
+      - '.github/workflows/build-frappe-images.yml'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version tag for the images'
+        required: false
+        default: 'latest'
+      environment:
+        description: 'Environment to build for'
+        required: false
+        default: 'dev'
+        type: choice
+        options:
+          - dev
+          - staging
+          - prod
+
+env:
+  REGISTRY: ghcr.io
+  REGISTRY_URL: ghcr.io/${{ github.repository_owner }}
+  FRAPPE_VERSION: v15
+  ERPNEXT_VERSION: v15
+
+jobs:
+  build-frappe-base:
+    name: Build Frappe Base Image
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+      
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v2
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Extract metadata for Docker
+        id: meta
+        uses: docker/metadata-action@v4
+        with:
+          images: ${{ env.REGISTRY_URL }}/frappe-base
+          tags: |
+            type=raw,value=${{ github.event.inputs.version || 'latest' }}
+            type=ref,event=branch
+            type=sha,format=short
+      
+      - name: Build and push Frappe base image
+        uses: docker/build-push-action@v4
+        with:
+          context: ./frappe
+          file: ./frappe/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  build-frappe-apps:
+    name: Build Frappe Apps Images
+    needs: build-frappe-base
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    
+    strategy:
+      matrix:
+        app:
+          - name: cauldron_operations_core
+            repo: https://github.com/seemslegit42/cauldron_operations_core.git
+            branch: main
+          - name: cauldron_synapse
+            repo: https://github.com/seemslegit42/cauldron_synapse.git
+            branch: main
+          - name: cauldron_aegis_protocol
+            repo: https://github.com/seemslegit42/cauldron_aegis_protocol.git
+            branch: main
+          - name: cauldron_lore
+            repo: https://github.com/seemslegit42/cauldron_lore.git
+            branch: main
+          - name: cauldron_command_cauldron
+            repo: https://github.com/seemslegit42/cauldron_command_cauldron.git
+            branch: main
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+      
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v2
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Extract metadata for Docker
+        id: meta
+        uses: docker/metadata-action@v4
+        with:
+          images: ${{ env.REGISTRY_URL }}/frappe-${{ matrix.app.name }}
+          tags: |
+            type=raw,value=${{ github.event.inputs.version || 'latest' }}
+            type=ref,event=branch
+            type=sha,format=short
+      
+      - name: Create Dockerfile for app
+        run: |
+          cat > Dockerfile.app << EOF
+          FROM ${{ env.REGISTRY_URL }}/frappe-base:${{ github.event.inputs.version || 'latest' }}
+          
+          USER frappe
+          WORKDIR /home/frappe/frappe-bench
+          
+          # Get Frappe and ERPNext
+          RUN bench get-app --branch ${{ env.FRAPPE_VERSION }} frappe https://github.com/frappe/frappe.git && \
+              bench get-app --branch ${{ env.ERPNEXT_VERSION }} erpnext https://github.com/frappe/erpnext.git
+          
+          # Get the custom app
+          RUN bench get-app --branch ${{ matrix.app.branch }} ${{ matrix.app.name }} ${{ matrix.app.repo }}
+          
+          # Set up the app for production if building for prod
+          RUN if [ "${{ github.event.inputs.environment }}" = "prod" ]; then \
+                bench --site all set-config developer_mode 0; \
+                bench build --production; \
+              fi
+          
+          # Copy entrypoint script
+          COPY --chown=frappe:frappe entrypoint.sh /home/frappe/entrypoint.sh
+          RUN chmod +x /home/frappe/entrypoint.sh
+          
+          ENTRYPOINT ["/home/frappe/entrypoint.sh"]
+          CMD ["bench", "start"]
+          EOF
+      
+      - name: Build and push Frappe app image
+        uses: docker/build-push-action@v4
+        with:
+          context: ./frappe
+          file: ./Dockerfile.app
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  build-frappe-complete:
+    name: Build Complete Frappe Image
+    needs: build-frappe-base
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+      
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v2
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Extract metadata for Docker
+        id: meta
+        uses: docker/metadata-action@v4
+        with:
+          images: ${{ env.REGISTRY_URL }}/frappe-complete
+          tags: |
+            type=raw,value=${{ github.event.inputs.version || 'latest' }}
+            type=ref,event=branch
+            type=sha,format=short
+      
+      - name: Create Dockerfile for complete image
+        run: |
+          cat > Dockerfile.complete << EOF
+          FROM ${{ env.REGISTRY_URL }}/frappe-base:${{ github.event.inputs.version || 'latest' }}
+          
+          USER frappe
+          WORKDIR /home/frappe/frappe-bench
+          
+          # Get Frappe and ERPNext
+          RUN bench get-app --branch ${{ env.FRAPPE_VERSION }} frappe https://github.com/frappe/frappe.git && \
+              bench get-app --branch ${{ env.ERPNEXT_VERSION }} erpnext https://github.com/frappe/erpnext.git
+          
+          # Get all custom apps
+          RUN bench get-app --branch main cauldron_operations_core https://github.com/seemslegit42/cauldron_operations_core.git && \
+              bench get-app --branch main cauldron_synapse https://github.com/seemslegit42/cauldron_synapse.git && \
+              bench get-app --branch main cauldron_aegis_protocol https://github.com/seemslegit42/cauldron_aegis_protocol.git && \
+              bench get-app --branch main cauldron_lore https://github.com/seemslegit42/cauldron_lore.git && \
+              bench get-app --branch main cauldron_command_cauldron https://github.com/seemslegit42/cauldron_command_cauldron.git
+          
+          # Set up for production if building for prod
+          RUN if [ "${{ github.event.inputs.environment }}" = "prod" ]; then \
+                bench --site all set-config developer_mode 0; \
+                bench build --production; \
+              fi
+          
+          # Copy entrypoint script
+          COPY --chown=frappe:frappe entrypoint.sh /home/frappe/entrypoint.sh
+          RUN chmod +x /home/frappe/entrypoint.sh
+          
+          ENTRYPOINT ["/home/frappe/entrypoint.sh"]
+          CMD ["bench", "start"]
+          EOF
+      
+      - name: Build and push complete Frappe image
+        uses: docker/build-push-action@v4
+        with:
+          context: ./frappe
+          file: ./Dockerfile.complete
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  update-helm-values:
+    name: Update Helm Chart Values
+    needs: [build-frappe-apps, build-frappe-complete]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Set image tag
+        id: set-tag
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "IMAGE_TAG=${{ github.event.inputs.version }}" >> $GITHUB_ENV
+          elif [ "${{ github.ref }}" = "refs/heads/main" ]; then
+            echo "IMAGE_TAG=latest" >> $GITHUB_ENV
+          else
+            echo "IMAGE_TAG=sha-$(git rev-parse --short HEAD)" >> $GITHUB_ENV
+          fi
+      
+      - name: Update Helm chart values
+        run: |
+          # Update the image repository and tag in the Helm chart values
+          sed -i "s|repository: frappe/bench|repository: ${{ env.REGISTRY_URL }}/frappe-complete|g" cauldron-frappe/values.yaml
+          sed -i "s|tag: latest|tag: ${{ env.IMAGE_TAG }}|g" cauldron-frappe/values.yaml
+          
+          # Update environment-specific values files
+          for env in dev staging prod; do
+            if [ -f "cauldron-frappe/values-${env}.yaml" ]; then
+              sed -i "s|tag: .*|tag: ${{ env.IMAGE_TAG }}|g" cauldron-frappe/values-${env}.yaml
+            fi
+          done
+      
+      - name: Commit and push changes
+        uses: stefanzweifel/git-auto-commit-action@v4
+        with:
+          commit_message: "chore: Update Frappe image tag to ${{ env.IMAGE_TAG }}"
+          file_pattern: cauldron-frappe/values*.yaml

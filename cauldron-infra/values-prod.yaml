@@ -1,0 +1,128 @@
+# Production environment values for cauldron-infra
+
+global:
+  environment: prod
+  # Use a specific storage class for production
+  storageClass: "managed-premium"
+
+# PostgreSQL configuration for production
+postgresql:
+  primary:
+    resources:
+      requests:
+        memory: "2Gi"
+        cpu: "1000m"
+      limits:
+        memory: "4Gi"
+        cpu: "2000m"
+  persistence:
+    size: 50Gi
+  metrics:
+    enabled: true
+  # High availability settings
+  architecture: replication
+  replication:
+    enabled: true
+    readReplicas: 2
+    synchronousCommit: "on"
+    numSynchronousReplicas: 1
+
+# TimescaleDB configuration for production
+timescaledb:
+  resources:
+    requests:
+      memory: "2Gi"
+      cpu: "1000m"
+    limits:
+      memory: "4Gi"
+      cpu: "2000m"
+  persistence:
+    size: 50Gi
+
+# Qdrant configuration for production
+qdrant:
+  resources:
+    requests:
+      memory: "2Gi"
+      cpu: "1000m"
+    limits:
+      memory: "4Gi"
+      cpu: "2000m"
+  persistence:
+    size: 20Gi
+  # Use multiple replicas for high availability
+  replicaCount: 2
+
+# RabbitMQ configuration for production
+rabbitmq:
+  resources:
+    requests:
+      memory: "2Gi"
+      cpu: "1000m"
+    limits:
+      memory: "4Gi"
+      cpu: "2000m"
+  persistence:
+    size: 20Gi
+  # High availability settings
+  replicaCount: 3
+  clustering:
+    enabled: true
+  metrics:
+    enabled: true
+
+# Redis configuration for production
+redis:
+  architecture: replication
+  master:
+    resources:
+      requests:
+        memory: "1Gi"
+        cpu: "500m"
+      limits:
+        memory: "2Gi"
+        cpu: "1000m"
+    persistence:
+      enabled: true
+      size: 10Gi
+  replica:
+    replicaCount: 2
+    resources:
+      requests:
+        memory: "1Gi"
+        cpu: "500m"
+      limits:
+        memory: "2Gi"
+        cpu: "1000m"
+    persistence:
+      enabled: true
+      size: 10Gi
+  metrics:
+    enabled: true
+
+# Redis instances for Frappe/ERPNext in production
+redisInstances:
+  cache:
+    resources:
+      requests:
+        memory: "1Gi"
+        cpu: "500m"
+      limits:
+        memory: "2Gi"
+        cpu: "1000m"
+  queue:
+    resources:
+      requests:
+        memory: "1Gi"
+        cpu: "500m"
+      limits:
+        memory: "2Gi"
+        cpu: "1000m"
+  socketio:
+    resources:
+      requests:
+        memory: "512Mi"
+        cpu: "250m"
+      limits:
+        memory: "1Gi"
+        cpu: "500m"

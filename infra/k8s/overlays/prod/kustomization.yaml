@@ -1,0 +1,27 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../../base
+
+namespace: cauldron-prod
+
+commonLabels:
+  environment: prod
+
+patches:
+  - path: patches/ingress-patch.yaml
+  - path: patches/replicas-patch.yaml
+  - path: patches/resources-patch.yaml
+  - path: patches/hpa-patch.yaml
+
+configMapGenerator:
+  - name: cauldron-prod-config
+    literals:
+      - ENVIRONMENT=production
+
+secretGenerator:
+  - name: cauldron-secrets
+    behavior: replace
+    envs:
+      - secrets.env

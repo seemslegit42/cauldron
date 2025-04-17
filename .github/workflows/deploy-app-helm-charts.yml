@@ -1,0 +1,272 @@
+name: Deploy Application Helm Charts
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'cauldron-frappe/**'
+      - 'cauldron-superagi/**'
+      - 'cauldron-n8n/**'
+      - 'cauldron-nextcloud/**'
+      - 'cauldron-manifold/**'
+      - '.github/workflows/deploy-app-helm-charts.yml'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy to'
+        required: true
+        default: 'dev'
+        type: choice
+        options:
+          - dev
+          - staging
+          - prod
+      version:
+        description: 'Version tag for the deployment'
+        required: false
+        default: 'latest'
+      charts:
+        description: 'Comma-separated list of charts to deploy (leave empty for all)'
+        required: false
+        default: ''
+      dry_run:
+        description: 'Perform a dry run (no actual deployment)'
+        required: false
+        default: false
+        type: boolean
+
+env:
+  HELM_VERSION: v3.12.3
+  KUBECTL_VERSION: v1.27.3
+  ALL_CHARTS: "cauldron-frappe,cauldron-superagi,cauldron-n8n,cauldron-nextcloud,cauldron-manifold"
+
+jobs:
+  validate-helm-charts:
+    name: Validate Helm Charts
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Set up Helm
+        uses: azure/setup-helm@v3
+        with:
+          version: ${{ env.HELM_VERSION }}
+      
+      - name: Determine charts to validate
+        id: charts
+        run: |
+          if [ -n "${{ github.event.inputs.charts }}" ]; then
+            CHARTS="${{ github.event.inputs.charts }}"
+          else
+            CHARTS="${{ env.ALL_CHARTS }}"
+          fi
+          echo "CHARTS=${CHARTS}" >> $GITHUB_ENV
+          echo "Charts to validate: ${CHARTS}"
+      
+      - name: Lint Helm charts
+        run: |
+          IFS=',' read -ra CHART_ARRAY <<< "${{ env.CHARTS }}"
+          for CHART in "${CHART_ARRAY[@]}"; do
+            if [ -d "${CHART}" ]; then
+              echo "Linting chart: ${CHART}"
+              helm lint ${CHART}
+              if [ $? -ne 0 ]; then
+                echo "Error: Helm lint failed for ${CHART}"
+                exit 1
+              fi
+            else
+              echo "Warning: Chart directory ${CHART} not found, skipping"
+            fi
+          done
+      
+      - name: Validate Helm charts
+        run: |
+          IFS=',' read -ra CHART_ARRAY <<< "${{ env.CHARTS }}"
+          for CHART in "${CHART_ARRAY[@]}"; do
+            if [ -d "${CHART}" ]; then
+              echo "Validating chart: ${CHART}"
+              helm template ${CHART} > /tmp/rendered-${CHART}.yaml
+              if [ $? -ne 0 ]; then
+                echo "Error: Helm template rendering failed for ${CHART}"
+                exit 1
+              fi
+            fi
+          done
+          
+          echo "Helm chart validation successful"
+
+  deploy-to-environment:
+    name: Deploy to ${{ github.event.inputs.environment || 'dev' }} Environment
+    needs: validate-helm-charts
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment || 'dev' }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Set up Helm
+        uses: azure/setup-helm@v3
+        with:
+          version: ${{ env.HELM_VERSION }}
+      
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: ${{ env.KUBECTL_VERSION }}
+      
+      - name: Configure Kubernetes credentials
+        uses: azure/k8s-set-context@v3
+        with:
+          method: kubeconfig
+          kubeconfig: ${{ secrets.KUBECONFIG }}
+      
+      - name: Add Helm repositories
+        run: |
+          helm repo add bitnami https://charts.bitnami.com/bitnami
+          helm repo update
+      
+      - name: Set deployment variables
+        id: vars
+        run: |
+          ENVIRONMENT="${{ github.event.inputs.environment || 'dev' }}"
+          VERSION="${{ github.event.inputs.version || 'latest' }}"
+          NAMESPACE="cauldron-${ENVIRONMENT}"
+          
+          if [ -n "${{ github.event.inputs.charts }}" ]; then
+            CHARTS="${{ github.event.inputs.charts }}"
+          else
+            CHARTS="${{ env.ALL_CHARTS }}"
+          fi
+          
+          echo "ENVIRONMENT=${ENVIRONMENT}" >> $GITHUB_ENV
+          echo "VERSION=${VERSION}" >> $GITHUB_ENV
+          echo "NAMESPACE=${NAMESPACE}" >> $GITHUB_ENV
+          echo "CHARTS=${CHARTS}" >> $GITHUB_ENV
+          
+          echo "Environment: ${ENVIRONMENT}"
+          echo "Version: ${VERSION}"
+          echo "Namespace: ${NAMESPACE}"
+          echo "Charts to deploy: ${CHARTS}"
+      
+      - name: Create namespace if not exists
+        run: |
+          kubectl get namespace ${{ env.NAMESPACE }} || kubectl create namespace ${{ env.NAMESPACE }}
+      
+      - name: Check infrastructure deployment
+        run: |
+          # Check if infrastructure is deployed
+          if ! helm status cauldron-infra -n ${{ env.NAMESPACE }} > /dev/null 2>&1; then
+            echo "Error: Infrastructure (cauldron-infra) is not deployed in namespace ${{ env.NAMESPACE }}"
+            echo "Please deploy the infrastructure first using the deploy-infra-helm-charts workflow"
+            exit 1
+          fi
+          
+          echo "Infrastructure deployment found, proceeding with application deployment"
+      
+      - name: Deploy Helm charts
+        run: |
+          IFS=',' read -ra CHART_ARRAY <<< "${{ env.CHARTS }}"
+          
+          # Define the deployment order
+          declare -A DEPLOY_ORDER
+          DEPLOY_ORDER["cauldron-frappe"]=1
+          DEPLOY_ORDER["cauldron-superagi"]=2
+          DEPLOY_ORDER["cauldron-n8n"]=3
+          DEPLOY_ORDER["cauldron-nextcloud"]=4
+          DEPLOY_ORDER["cauldron-manifold"]=5
+          
+          # Sort charts by deployment order
+          SORTED_CHARTS=()
+          for CHART in "${CHART_ARRAY[@]}"; do
+            if [ -d "${CHART}" ]; then
+              SORTED_CHARTS+=("${CHART}")
+            else
+              echo "Warning: Chart directory ${CHART} not found, skipping"
+            fi
+          done
+          
+          # Sort the array based on deployment order
+          IFS=$'\n' SORTED_CHARTS=($(sort -k2 -n <<<"${SORTED_CHARTS[*]}"))
+          unset IFS
+          
+          # Deploy each chart
+          for CHART in "${SORTED_CHARTS[@]}"; do
+            RELEASE_NAME=$(basename ${CHART})
+            VALUES_FILE="${CHART}/values-${{ env.ENVIRONMENT }}.yaml"
+            
+            echo "Deploying chart: ${CHART} as ${RELEASE_NAME}"
+            
+            if [ "${{ github.event.inputs.dry_run }}" == "true" ]; then
+              # Perform dry run
+              helm upgrade --install ${RELEASE_NAME} ${CHART} \
+                --namespace ${{ env.NAMESPACE }} \
+                -f ${VALUES_FILE} \
+                --set global.environment=${{ env.ENVIRONMENT }} \
+                --set global.version=${{ env.VERSION }} \
+                --debug \
+                --dry-run
+            else
+              # Perform actual deployment
+              helm upgrade --install ${RELEASE_NAME} ${CHART} \
+                --namespace ${{ env.NAMESPACE }} \
+                -f ${VALUES_FILE} \
+                --set global.environment=${{ env.ENVIRONMENT }} \
+                --set global.version=${{ env.VERSION }} \
+                --timeout 10m \
+                --wait
+              
+              # Wait for deployment to be ready before proceeding to next chart
+              echo "Waiting for ${RELEASE_NAME} deployment to be ready..."
+              kubectl rollout status deployment -l app.kubernetes.io/instance=${RELEASE_NAME} -n ${{ env.NAMESPACE }} --timeout=300s
+            fi
+          done
+      
+      - name: Verify deployment
+        if: ${{ github.event.inputs.dry_run != 'true' }}
+        run: |
+          echo "Checking deployment status..."
+          kubectl get all -n ${{ env.NAMESPACE }}
+          
+          echo "Deployment completed successfully!"
+
+  notify-deployment-status:
+    name: Notify Deployment Status
+    needs: deploy-to-environment
+    runs-on: ubuntu-latest
+    if: always()
+    
+    steps:
+      - name: Set status
+        id: status
+        run: |
+          if [ "${{ needs.deploy-to-environment.result }}" == "success" ]; then
+            echo "STATUS=success" >> $GITHUB_ENV
+            echo "MESSAGE=✅ Application deployment to ${{ github.event.inputs.environment || 'dev' }} completed successfully" >> $GITHUB_ENV
+          else
+            echo "STATUS=failure" >> $GITHUB_ENV
+            echo "MESSAGE=❌ Application deployment to ${{ github.event.inputs.environment || 'dev' }} failed" >> $GITHUB_ENV
+          fi
+      
+      - name: Create GitHub deployment status
+        uses: chrnorm/deployment-status@v2
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          state: ${{ env.STATUS }}
+          deployment-id: ${{ github.run_id }}
+          description: ${{ env.MESSAGE }}
+          environment: ${{ github.event.inputs.environment || 'dev' }}
+      
+      - name: Slack Notification
+        uses: rtCamp/action-slack-notify@v2
+        if: always()
+        env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+          SLACK_CHANNEL: deployments
+          SLACK_COLOR: ${{ env.STATUS == 'success' && 'good' || 'danger' }}
+          SLACK_TITLE: Application Deployment Status
+          SLACK_MESSAGE: ${{ env.MESSAGE }}
+          SLACK_FOOTER: "Cauldron CI/CD Pipeline"

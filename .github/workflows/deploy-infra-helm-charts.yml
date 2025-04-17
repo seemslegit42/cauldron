@@ -1,0 +1,209 @@
+name: Deploy Infrastructure Helm Charts
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'cauldron-infra/**'
+      - '.github/workflows/deploy-infra-helm-charts.yml'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy to'
+        required: true
+        default: 'dev'
+        type: choice
+        options:
+          - dev
+          - staging
+          - prod
+      version:
+        description: 'Version tag for the deployment'
+        required: false
+        default: 'latest'
+      dry_run:
+        description: 'Perform a dry run (no actual deployment)'
+        required: false
+        default: false
+        type: boolean
+
+env:
+  HELM_VERSION: v3.12.3
+  KUBECTL_VERSION: v1.27.3
+  CHART_PATH: cauldron-infra
+
+jobs:
+  validate-helm-chart:
+    name: Validate Helm Chart
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Set up Helm
+        uses: azure/setup-helm@v3
+        with:
+          version: ${{ env.HELM_VERSION }}
+      
+      - name: Lint Helm chart
+        run: |
+          helm lint ${{ env.CHART_PATH }}
+      
+      - name: Validate Helm chart
+        run: |
+          helm template ${{ env.CHART_PATH }} > /tmp/rendered-manifests.yaml
+          if [ $? -ne 0 ]; then
+            echo "Error: Helm template rendering failed"
+            exit 1
+          fi
+          
+          echo "Helm chart validation successful"
+
+  deploy-to-environment:
+    name: Deploy to ${{ github.event.inputs.environment || 'dev' }} Environment
+    needs: validate-helm-chart
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment || 'dev' }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Set up Helm
+        uses: azure/setup-helm@v3
+        with:
+          version: ${{ env.HELM_VERSION }}
+      
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: ${{ env.KUBECTL_VERSION }}
+      
+      - name: Configure Kubernetes credentials
+        uses: azure/k8s-set-context@v3
+        with:
+          method: kubeconfig
+          kubeconfig: ${{ secrets.KUBECONFIG }}
+      
+      - name: Add Helm repositories
+        run: |
+          helm repo add bitnami https://charts.bitnami.com/bitnami
+          helm repo update
+      
+      - name: Set deployment variables
+        id: vars
+        run: |
+          ENVIRONMENT="${{ github.event.inputs.environment || 'dev' }}"
+          VERSION="${{ github.event.inputs.version || 'latest' }}"
+          NAMESPACE="cauldron-${ENVIRONMENT}"
+          RELEASE_NAME="cauldron-infra"
+          VALUES_FILE="${{ env.CHART_PATH }}/values-${ENVIRONMENT}.yaml"
+          
+          echo "ENVIRONMENT=${ENVIRONMENT}" >> $GITHUB_ENV
+          echo "VERSION=${VERSION}" >> $GITHUB_ENV
+          echo "NAMESPACE=${NAMESPACE}" >> $GITHUB_ENV
+          echo "RELEASE_NAME=${RELEASE_NAME}" >> $GITHUB_ENV
+          echo "VALUES_FILE=${VALUES_FILE}" >> $GITHUB_ENV
+      
+      - name: Create namespace if not exists
+        run: |
+          kubectl get namespace ${{ env.NAMESPACE }} || kubectl create namespace ${{ env.NAMESPACE }}
+      
+      - name: Create Kubernetes secrets
+        run: |
+          # Create a temporary file with secrets
+          cat > /tmp/secrets.yaml << EOF
+          apiVersion: v1
+          kind: Secret
+          metadata:
+            name: cauldron-secrets
+            namespace: ${{ env.NAMESPACE }}
+          type: Opaque
+          stringData:
+            db-root-password: ${{ secrets.DB_ROOT_PASSWORD }}
+            rabbitmq-password: ${{ secrets.RABBITMQ_PASSWORD }}
+            redis-password: ${{ secrets.REDIS_PASSWORD }}
+            openai-api-key: ${{ secrets.OPENAI_API_KEY }}
+            anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
+            huggingface-token: ${{ secrets.HUGGINGFACE_TOKEN }}
+            superagi-api-key: ${{ secrets.SUPERAGI_API_KEY }}
+          EOF
+          
+          # Apply the secrets
+          kubectl apply -f /tmp/secrets.yaml
+          
+          # Remove the temporary file
+          rm /tmp/secrets.yaml
+      
+      - name: Perform Helm dry run
+        if: ${{ github.event.inputs.dry_run == 'true' }}
+        run: |
+          helm upgrade --install ${{ env.RELEASE_NAME }} ${{ env.CHART_PATH }} \
+            --namespace ${{ env.NAMESPACE }} \
+            -f ${{ env.VALUES_FILE }} \
+            --set global.environment=${{ env.ENVIRONMENT }} \
+            --set global.version=${{ env.VERSION }} \
+            --debug \
+            --dry-run
+      
+      - name: Deploy Helm chart
+        if: ${{ github.event.inputs.dry_run != 'true' }}
+        run: |
+          helm upgrade --install ${{ env.RELEASE_NAME }} ${{ env.CHART_PATH }} \
+            --namespace ${{ env.NAMESPACE }} \
+            -f ${{ env.VALUES_FILE }} \
+            --set global.environment=${{ env.ENVIRONMENT }} \
+            --set global.version=${{ env.VERSION }} \
+            --timeout 10m \
+            --wait
+      
+      - name: Verify deployment
+        if: ${{ github.event.inputs.dry_run != 'true' }}
+        run: |
+          echo "Waiting for all pods to be ready..."
+          kubectl wait --for=condition=ready pod --all -n ${{ env.NAMESPACE }} --timeout=300s
+          
+          echo "Checking deployment status..."
+          kubectl get all -n ${{ env.NAMESPACE }}
+          
+          echo "Deployment completed successfully!"
+
+  notify-deployment-status:
+    name: Notify Deployment Status
+    needs: deploy-to-environment
+    runs-on: ubuntu-latest
+    if: always()
+    
+    steps:
+      - name: Set status
+        id: status
+        run: |
+          if [ "${{ needs.deploy-to-environment.result }}" == "success" ]; then
+            echo "STATUS=success" >> $GITHUB_ENV
+            echo "MESSAGE=✅ Infrastructure deployment to ${{ github.event.inputs.environment || 'dev' }} completed successfully" >> $GITHUB_ENV
+          else
+            echo "STATUS=failure" >> $GITHUB_ENV
+            echo "MESSAGE=❌ Infrastructure deployment to ${{ github.event.inputs.environment || 'dev' }} failed" >> $GITHUB_ENV
+          fi
+      
+      - name: Create GitHub deployment status
+        uses: chrnorm/deployment-status@v2
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          state: ${{ env.STATUS }}
+          deployment-id: ${{ github.run_id }}
+          description: ${{ env.MESSAGE }}
+          environment: ${{ github.event.inputs.environment || 'dev' }}
+      
+      - name: Slack Notification
+        uses: rtCamp/action-slack-notify@v2
+        if: always()
+        env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+          SLACK_CHANNEL: deployments
+          SLACK_COLOR: ${{ env.STATUS == 'success' && 'good' || 'danger' }}
+          SLACK_TITLE: Infrastructure Deployment Status
+          SLACK_MESSAGE: ${{ env.MESSAGE }}
+          SLACK_FOOTER: "Cauldron CI/CD Pipeline"

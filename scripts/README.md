@@ -7,6 +7,10 @@ This directory contains utility shell scripts for common development, build, dep
 * **`setup_frappe.sh`**:
     * **Purpose:** Performs the initial setup of the Frappe Bench environment, site creation, and installation of ERPNext and custom Cauldron apps within the Codespaces container. Designed to be idempotent (safe to run multiple times).
     * **Usage:** Typically called automatically by the `postCreateCommand` in `.devcontainer/devcontainer.json`. Requires specific environment variables (e.g., `DB_ROOT_PASSWORD`, `ADMIN_PASSWORD`) to be set via Codespaces secrets.
+* **`deploy-k8s.sh`**:
+    * **Purpose:** Deploys the Cauldron application to a Kubernetes cluster using Kustomize for environment-specific configurations. Handles building and pushing Docker images, and applying Kubernetes manifests.
+    * **Usage:** `./deploy-k8s.sh --environment <env> --registry <registry-url> --version <version>`. Run with `--help` for more options.
+    * **Example:** `./deploy-k8s.sh --environment dev --registry my-registry.io --version 1.0.0`
 * **(Other Scripts - Examples)**
     * `invoke-local.sh`: (Placeholder) Could be used to start all services locally via Docker Compose.
     * `build-images.sh`: (Placeholder) Could be used to build custom Docker images for services.

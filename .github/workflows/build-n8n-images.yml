@@ -1,0 +1,452 @@
+name: Build n8n Docker Images
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+    paths:
+      - 'n8n/**'
+      - '.github/workflows/build-n8n-images.yml'
+  pull_request:
+    paths:
+      - 'n8n/**'
+      - '.github/workflows/build-n8n-images.yml'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version tag for the images'
+        required: false
+        default: 'latest'
+      environment:
+        description: 'Environment to build for'
+        required: false
+        default: 'dev'
+        type: choice
+        options:
+          - dev
+          - staging
+          - prod
+      n8n_version:
+        description: 'n8n version to use'
+        required: false
+        default: 'latest'
+
+env:
+  REGISTRY: ghcr.io
+  REGISTRY_URL: ghcr.io/${{ github.repository_owner }}
+  N8N_VERSION: ${{ github.event.inputs.n8n_version || 'latest' }}
+
+jobs:
+  build-n8n-image:
+    name: Build n8n Image
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+      
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v2
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Extract metadata for Docker
+        id: meta
+        uses: docker/metadata-action@v4
+        with:
+          images: ${{ env.REGISTRY_URL }}/n8n
+          tags: |
+            type=raw,value=${{ github.event.inputs.version || 'latest' }}
+            type=ref,event=branch
+            type=sha,format=short
+      
+      - name: Build and push n8n image
+        uses: docker/build-push-action@v4
+        with:
+          context: ./n8n
+          file: ./n8n/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            N8N_VERSION=${{ env.N8N_VERSION }}
+            ENVIRONMENT=${{ github.event.inputs.environment || 'dev' }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  create-helm-chart:
+    name: Create n8n Helm Chart
+    needs: build-n8n-image
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' && !contains(github.ref, 'refs/pull/')
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Set image tag
+        id: set-tag
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "IMAGE_TAG=${{ github.event.inputs.version }}" >> $GITHUB_ENV
+          elif [ "${{ github.ref }}" = "refs/heads/main" ]; then
+            echo "IMAGE_TAG=latest" >> $GITHUB_ENV
+          else
+            echo "IMAGE_TAG=sha-$(git rev-parse --short HEAD)" >> $GITHUB_ENV
+          fi
+      
+      - name: Check if Helm chart exists
+        id: check-chart
+        run: |
+          if [ -d "cauldron-n8n" ]; then
+            echo "CHART_EXISTS=true" >> $GITHUB_ENV
+          else
+            echo "CHART_EXISTS=false" >> $GITHUB_ENV
+          fi
+      
+      - name: Create Helm chart directory structure
+        if: env.CHART_EXISTS == 'false'
+        run: |
+          mkdir -p cauldron-n8n/templates
+          mkdir -p cauldron-n8n/charts
+      
+      - name: Create Chart.yaml
+        if: env.CHART_EXISTS == 'false'
+        run: |
+          cat > cauldron-n8n/Chart.yaml << EOF
+          apiVersion: v2
+          name: cauldron-n8n
+          description: Helm chart for n8n workflow automation in the Cauldron sEOS
+          type: application
+          version: 0.1.0
+          appVersion: "${{ env.N8N_VERSION }}"
+          maintainers:
+            - name: Cauldron Team
+              email: info@cauldron.ai
+          dependencies:
+            - name: common
+              version: ~1.16.1
+              repository: https://charts.bitnami.com/bitnami
+          EOF
+      
+      - name: Create values.yaml
+        if: env.CHART_EXISTS == 'false'
+        run: |
+          cat > cauldron-n8n/values.yaml << EOF
+          # Default values for cauldron-n8n
+          # This is a YAML-formatted file.
+
+          # Global settings
+          global:
+            # Environment name (dev, staging, prod)
+            environment: dev
+            
+            # Storage class for persistent volumes
+            storageClass: ""
+            
+            # Image pull policy
+            imagePullPolicy: IfNotPresent
+            
+            # Common labels to apply to all resources
+            labels:
+              app.kubernetes.io/part-of: cauldron-seos
+              app.kubernetes.io/managed-by: helm
+
+          # n8n configuration
+          n8n:
+            # Image configuration
+            image:
+              repository: ${{ env.REGISTRY_URL }}/n8n
+              tag: "${{ env.IMAGE_TAG }}"
+              pullPolicy: IfNotPresent
+            
+            # Resource configuration
+            resources:
+              requests:
+                memory: "256Mi"
+                cpu: "100m"
+              limits:
+                memory: "512Mi"
+                cpu: "300m"
+            
+            # Persistence configuration
+            persistence:
+              enabled: true
+              size: 1Gi
+              accessMode: ReadWriteOnce
+            
+            # Replica configuration
+            replicas: 1
+            
+            # Service configuration
+            service:
+              type: ClusterIP
+              port: 5678
+            
+            # Ingress configuration
+            ingress:
+              enabled: true
+              className: "traefik"
+              annotations:
+                traefik.ingress.kubernetes.io/router.entrypoints: web
+              hosts:
+                - host: n8n.cauldron.local
+                  paths:
+                    - path: /
+                      pathType: Prefix
+              tls: []
+            
+            # Database configuration
+            db:
+              type: postgresdb
+              host: "postgres"
+              port: 5432
+              database: "n8n"
+              user: "postgres"
+              passwordSecret: "cauldron-secrets"
+              passwordKey: "db-root-password"
+            
+            # Environment variables
+            env:
+              - name: N8N_PORT
+                value: "5678"
+              - name: N8N_PROTOCOL
+                value: "http"
+              - name: NODE_ENV
+                value: "production"
+              - name: WEBHOOK_URL
+                value: "http://n8n.cauldron.local/"
+              - name: GENERIC_TIMEZONE
+                value: "UTC"
+            
+            # Health check configuration
+            livenessProbe:
+              enabled: true
+              initialDelaySeconds: 30
+              periodSeconds: 10
+              timeoutSeconds: 5
+              failureThreshold: 3
+              successThreshold: 1
+            
+            readinessProbe:
+              enabled: true
+              initialDelaySeconds: 10
+              periodSeconds: 10
+              timeoutSeconds: 5
+              failureThreshold: 3
+              successThreshold: 1
+            
+            # Init container configuration
+            initContainers:
+              waitForDb:
+                enabled: true
+                image: postgres:15-alpine
+                command: ["sh", "-c", "until pg_isready -h \$DB_HOST -p \$DB_PORT -U \$DB_USER; do echo waiting for database; sleep 2; done;"]
+          EOF
+      
+      - name: Create environment-specific values files
+        if: env.CHART_EXISTS == 'false'
+        run: |
+          # Development values
+          cat > cauldron-n8n/values-dev.yaml << EOF
+          # Development environment values for cauldron-n8n
+          
+          global:
+            environment: dev
+          
+          n8n:
+            resources:
+              requests:
+                memory: "256Mi"
+                cpu: "100m"
+              limits:
+                memory: "512Mi"
+                cpu: "300m"
+            
+            persistence:
+              size: 1Gi
+            
+            replicas: 1
+            
+            ingress:
+              hosts:
+                - host: n8n.cauldron.local
+                  paths:
+                    - path: /
+                      pathType: Prefix
+          EOF
+          
+          # Staging values
+          cat > cauldron-n8n/values-staging.yaml << EOF
+          # Staging environment values for cauldron-n8n
+          
+          global:
+            environment: staging
+          
+          n8n:
+            resources:
+              requests:
+                memory: "512Mi"
+                cpu: "200m"
+              limits:
+                memory: "1Gi"
+                cpu: "500m"
+            
+            persistence:
+              size: 5Gi
+            
+            replicas: 2
+            
+            ingress:
+              annotations:
+                kubernetes.io/ingress.class: traefik
+                traefik.ingress.kubernetes.io/router.entrypoints: websecure
+                cert-manager.io/cluster-issuer: letsencrypt-staging
+              hosts:
+                - host: n8n-staging.cauldron.ai
+                  paths:
+                    - path: /
+                      pathType: Prefix
+              tls:
+                - secretName: n8n-staging-tls
+                  hosts:
+                    - n8n-staging.cauldron.ai
+          EOF
+          
+          # Production values
+          cat > cauldron-n8n/values-prod.yaml << EOF
+          # Production environment values for cauldron-n8n
+          
+          global:
+            environment: prod
+          
+          n8n:
+            resources:
+              requests:
+                memory: "1Gi"
+                cpu: "500m"
+              limits:
+                memory: "2Gi"
+                cpu: "1000m"
+            
+            persistence:
+              size: 10Gi
+            
+            replicas: 3
+            
+            ingress:
+              annotations:
+                kubernetes.io/ingress.class: traefik
+                traefik.ingress.kubernetes.io/router.entrypoints: websecure
+                cert-manager.io/cluster-issuer: letsencrypt-prod
+              hosts:
+                - host: n8n.cauldron.ai
+                  paths:
+                    - path: /
+                      pathType: Prefix
+              tls:
+                - secretName: n8n-prod-tls
+                  hosts:
+                    - n8n.cauldron.ai
+          EOF
+      
+      - name: Create basic template files
+        if: env.CHART_EXISTS == 'false'
+        run: |
+          # Create _helpers.tpl
+          cat > cauldron-n8n/templates/_helpers.tpl << EOF
+          {{/*
+          Expand the name of the chart.
+          */}}
+          {{- define "cauldron-n8n.name" -}}
+          {{- default .Chart.Name .Values.nameOverride | trunc 63 | trimSuffix "-" }}
+          {{- end }}
+
+          {{/*
+          Create a default fully qualified app name.
+          We truncate at 63 chars because some Kubernetes name fields are limited to this (by the DNS naming spec).
+          If release name contains chart name it will be used as a full name.
+          */}}
+          {{- define "cauldron-n8n.fullname" -}}
+          {{- if .Values.fullnameOverride }}
+          {{- .Values.fullnameOverride | trunc 63 | trimSuffix "-" }}
+          {{- else }}
+          {{- \$name := default .Chart.Name .Values.nameOverride }}
+          {{- if contains \$name .Release.Name }}
+          {{- .Release.Name | trunc 63 | trimSuffix "-" }}
+          {{- else }}
+          {{- printf "%s-%s" .Release.Name \$name | trunc 63 | trimSuffix "-" }}
+          {{- end }}
+          {{- end }}
+          {{- end }}
+
+          {{/*
+          Create chart name and version as used by the chart label.
+          */}}
+          {{- define "cauldron-n8n.chart" -}}
+          {{- printf "%s-%s" .Chart.Name .Chart.Version | replace "+" "_" | trunc 63 | trimSuffix "-" }}
+          {{- end }}
+
+          {{/*
+          Common labels
+          */}}
+          {{- define "cauldron-n8n.labels" -}}
+          helm.sh/chart: {{ include "cauldron-n8n.chart" . }}
+          {{ include "cauldron-n8n.selectorLabels" . }}
+          {{- if .Chart.AppVersion }}
+          app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
+          {{- end }}
+          app.kubernetes.io/managed-by: {{ .Release.Service }}
+          {{- with .Values.global.labels }}
+          {{ toYaml . }}
+          {{- end }}
+          {{- end }}
+
+          {{/*
+          Selector labels
+          */}}
+          {{- define "cauldron-n8n.selectorLabels" -}}
+          app.kubernetes.io/name: {{ include "cauldron-n8n.name" . }}
+          app.kubernetes.io/instance: {{ .Release.Name }}
+          {{- end }}
+
+          {{/*
+          Create the name of the service account to use
+          */}}
+          {{- define "cauldron-n8n.serviceAccountName" -}}
+          {{- if .Values.serviceAccount.create }}
+          {{- default (include "cauldron-n8n.fullname" .) .Values.serviceAccount.name }}
+          {{- else }}
+          {{- default "default" .Values.serviceAccount.name }}
+          {{- end }}
+          {{- end }}
+
+          {{/*
+          Create the name of the PVC to use
+          */}}
+          {{- define "cauldron-n8n.pvcName" -}}
+          {{- printf "%s-data" (include "cauldron-n8n.fullname" .) | trunc 63 | trimSuffix "-" }}
+          {{- end }}
+          EOF
+      
+      - name: Update Helm chart values with new image tag
+        if: env.CHART_EXISTS == 'true'
+        run: |
+          # Update the image repository and tag in the Helm chart values
+          sed -i "s|repository:.*|repository: ${{ env.REGISTRY_URL }}/n8n|g" cauldron-n8n/values.yaml
+          sed -i "s|tag:.*|tag: \"${{ env.IMAGE_TAG }}\"|g" cauldron-n8n/values.yaml
+      
+      - name: Commit and push changes
+        uses: stefanzweifel/git-auto-commit-action@v4
+        with:
+          commit_message: "chore: Update n8n image tag to ${{ env.IMAGE_TAG }}"
+          file_pattern: cauldron-n8n/*

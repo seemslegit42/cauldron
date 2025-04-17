@@ -1,0 +1,21 @@
+{{- if .Values.qdrant.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: qdrant
+  labels:
+    {{- include "cauldron-infra.labels" . | nindent 4 }}
+    app.kubernetes.io/component: qdrant
+spec:
+  selector:
+    {{- include "cauldron-infra.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: qdrant
+  ports:
+  - port: {{ .Values.qdrant.service.ports.http }}
+    targetPort: 6333
+    name: http
+  - port: {{ .Values.qdrant.service.ports.grpc }}
+    targetPort: 6334
+    name: grpc
+  type: {{ .Values.qdrant.service.type }}
+{{- end }}

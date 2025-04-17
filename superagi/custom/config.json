@@ -1,0 +1,57 @@
+{
+  "agent_config": {
+    "default_llm": "gpt-4",
+    "default_agent_timeout": 3600,
+    "max_iterations": 25,
+    "agent_workflow": "hierarchical",
+    "memory_provider": "postgres",
+    "vector_store": "qdrant"
+  },
+  "resources": {
+    "vector_db_url": "http://qdrant:6333",
+    "database_url": "postgresql://postgres:please_change_in_env@postgres:5432/superagi",
+    "message_broker_url": "amqp://guest:guest@rabbitmq:5672/"
+  },
+  "logging": {
+    "level": "INFO",
+    "format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    "file": "/app/logs/superagi.log"
+  },
+  "cauldron_integration": {
+    "enabled": true,
+    "aethercore_url": "http://aethercore:8000",
+    "frappe_url": "http://frappe:8000",
+    "nextcloud_url": "http://nextcloud:80",
+    "n8n_url": "http://n8n:5678"
+  },
+  "agent_templates": [
+    {
+      "name": "CoreSentienceAgent",
+      "description": "Core Sentience agent for system-level operations",
+      "tools": ["file_manager", "web_search", "code_executor", "system_monitor"],
+      "llm": "gpt-4",
+      "max_iterations": 50
+    },
+    {
+      "name": "DomainRegentAgent",
+      "description": "Domain Regent agent for domain-specific operations",
+      "tools": ["file_manager", "web_search", "code_executor", "domain_tools"],
+      "llm": "gpt-4",
+      "max_iterations": 35
+    },
+    {
+      "name": "TaskMasterAgent",
+      "description": "Task Master agent for task-specific operations",
+      "tools": ["file_manager", "web_search", "task_tools"],
+      "llm": "gpt-3.5-turbo",
+      "max_iterations": 25
+    },
+    {
+      "name": "MinionAgent",
+      "description": "Minion agent for simple, focused tasks",
+      "tools": ["file_manager", "minion_tools"],
+      "llm": "gpt-3.5-turbo",
+      "max_iterations": 15
+    }
+  ]
+}

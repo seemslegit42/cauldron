@@ -1,0 +1,13 @@
+apiVersion: v2
+name: cauldron-frappe
+description: Helm chart for Frappe/ERPNext with Cauldron custom apps
+type: application
+version: 0.1.0
+appVersion: "15.0.0"
+maintainers:
+  - name: Cauldron Team
+    email: info@cauldron.ai
+dependencies:
+  - name: common
+    version: ~1.16.1
+    repository: https://charts.bitnami.com/bitnami

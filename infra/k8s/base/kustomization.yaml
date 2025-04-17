@@ -1,0 +1,20 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - namespace.yaml
+  - secrets.yaml
+  - postgres.yaml
+  - qdrant.yaml
+  - timescaledb.yaml
+  - rabbitmq.yaml
+  - superagi.yaml
+  - aethercore.yaml
+  - manifold-ui.yaml
+  - traefik.yaml
+
+commonLabels:
+  app.kubernetes.io/part-of: cauldron-seos
+  app.kubernetes.io/managed-by: kustomize
+
+namespace: cauldron

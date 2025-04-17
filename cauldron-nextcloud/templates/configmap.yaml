@@ -1,0 +1,147 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "cauldron-nextcloud.configMapName" . }}
+  labels:
+    {{- include "cauldron-nextcloud.labels" . | nindent 4 }}
+data:
+  entrypoint.sh: |-
+    #!/bin/bash
+    set -e
+
+    # Function to log messages
+    log() {
+        echo "[$(date +'%Y-%m-%d %H:%M:%S')] $1"
+    }
+
+    # Wait for PostgreSQL to be ready
+    wait_for_postgres() {
+        log "Waiting for PostgreSQL to be ready..."
+        until PGPASSWORD=${POSTGRES_PASSWORD} psql -h ${POSTGRES_HOST} -p ${POSTGRES_PORT} -U ${POSTGRES_USER} -c '\q'; do
+            log "PostgreSQL is unavailable - sleeping"
+            sleep 2
+        done
+        log "PostgreSQL is up - continuing"
+    }
+
+    # Wait for Redis to be ready
+    wait_for_redis() {
+        log "Waiting for Redis to be ready..."
+        until redis-cli -h ${REDIS_HOST} -p ${REDIS_PORT} ping; do
+            log "Redis is unavailable - sleeping"
+            sleep 2
+        done
+        log "Redis is up - continuing"
+    }
+
+    # Main execution
+    log "Starting Nextcloud container..."
+
+    # Wait for dependencies if enabled
+    if [ "${WAIT_FOR_DB:-true}" = "true" ]; then
+        wait_for_postgres
+    fi
+
+    if [ "${WAIT_FOR_REDIS:-true}" = "true" ] && [ -n "${REDIS_HOST:-}" ]; then
+        wait_for_redis
+    fi
+
+    # Check if Nextcloud is already installed
+    if [ ! -f /var/www/html/config/config.php ]; then
+        log "Nextcloud not yet installed. Running installation..."
+        
+        # Create database if it doesn't exist
+        if [ "${CREATE_DB:-true}" = "true" ]; then
+            log "Checking if database exists..."
+            if ! PGPASSWORD=${POSTGRES_PASSWORD} psql -h ${POSTGRES_HOST} -p ${POSTGRES_PORT} -U ${POSTGRES_USER} -lqt | cut -d \| -f 1 | grep -qw "${POSTGRES_DB}"; then
+                log "Creating database: ${POSTGRES_DB}"
+                PGPASSWORD=${POSTGRES_PASSWORD} psql -h ${POSTGRES_HOST} -p ${POSTGRES_PORT} -U ${POSTGRES_USER} -c "CREATE DATABASE \"${POSTGRES_DB}\";"
+                log "Database created."
+            else
+                log "Database already exists."
+            fi
+        fi
+        
+        # Install Nextcloud
+        log "Installing Nextcloud..."
+        php occ maintenance:install \
+            --database="${DB_TYPE}" \
+            --database-name="${POSTGRES_DB}" \
+            --database-host="${POSTGRES_HOST}" \
+            --database-port="${POSTGRES_PORT}" \
+            --database-user="${POSTGRES_USER}" \
+            --database-pass="${POSTGRES_PASSWORD}" \
+            --admin-user="${NEXTCLOUD_ADMIN_USER}" \
+            --admin-pass="${NEXTCLOUD_ADMIN_PASSWORD}"
+        
+        # Configure trusted domains
+        if [ -n "${NEXTCLOUD_TRUSTED_DOMAINS:-}" ]; then
+            log "Setting trusted domains..."
+            IFS=',' read -ra DOMAINS <<< "${NEXTCLOUD_TRUSTED_DOMAINS}"
+            for i in "${!DOMAINS[@]}"; do
+                php occ config:system:set trusted_domains $i --value="${DOMAINS[$i]}"
+            done
+        fi
+        
+        # Configure Redis if enabled
+        if [ -n "${REDIS_HOST:-}" ]; then
+            log "Configuring Redis..."
+            php occ config:system:set redis host --value="${REDIS_HOST}"
+            php occ config:system:set redis port --value="${REDIS_PORT}"
+            php occ config:system:set memcache.locking --value="\\OC\\Memcache\\Redis"
+            php occ config:system:set memcache.local --value="\\OC\\Memcache\\Redis"
+        fi
+        
+        # Configure PHP settings
+        if [ -n "${PHP_MEMORY_LIMIT:-}" ]; then
+            log "Setting PHP memory limit to ${PHP_MEMORY_LIMIT}"
+            php occ config:system:set php_memory_limit --value="${PHP_MEMORY_LIMIT}"
+        fi
+        
+        # Configure debug mode
+        if [ "${NEXTCLOUD_DEBUG:-false}" = "true" ]; then
+            log "Enabling debug mode"
+            php occ config:system:set debug --value=true
+        fi
+        
+        # Configure maintenance mode
+        if [ "${NEXTCLOUD_MAINTENANCE:-false}" = "true" ]; then
+            log "Enabling maintenance mode"
+            php occ maintenance:mode --on
+        fi
+        
+        # Configure default language
+        if [ -n "${NEXTCLOUD_DEFAULT_LANGUAGE:-}" ]; then
+            log "Setting default language to ${NEXTCLOUD_DEFAULT_LANGUAGE}"
+            php occ config:system:set default_language --value="${NEXTCLOUD_DEFAULT_LANGUAGE}"
+        fi
+        
+        # Configure default locale
+        if [ -n "${NEXTCLOUD_DEFAULT_LOCALE:-}" ]; then
+            log "Setting default locale to ${NEXTCLOUD_DEFAULT_LOCALE}"
+            php occ config:system:set default_locale --value="${NEXTCLOUD_DEFAULT_LOCALE}"
+        fi
+        
+        # Configure default phone region
+        if [ -n "${NEXTCLOUD_DEFAULT_PHONE_REGION:-}" ]; then
+            log "Setting default phone region to ${NEXTCLOUD_DEFAULT_PHONE_REGION}"
+            php occ config:system:set default_phone_region --value="${NEXTCLOUD_DEFAULT_PHONE_REGION}"
+        fi
+        
+        log "Nextcloud installation completed."
+    fi
+
+    # Set correct permissions
+    log "Setting correct permissions..."
+    chown -R www-data:www-data /var/www/html
+
+    # Execute the command passed to docker
+    log "Executing command: $@"
+    exec "$@"
+  
+  php.ini: |-
+    memory_limit = {{ .Values.nextcloud.php.memoryLimit }}
+    upload_max_filesize = {{ .Values.nextcloud.php.uploadMaxFilesize }}
+    post_max_size = {{ .Values.nextcloud.php.postMaxSize }}
+    max_execution_time = {{ .Values.nextcloud.php.maxExecutionTime }}
+    max_input_time = {{ .Values.nextcloud.php.maxInputTime }}

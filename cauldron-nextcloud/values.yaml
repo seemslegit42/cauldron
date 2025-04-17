@@ -1,0 +1,151 @@
+# Default values for cauldron-nextcloud
+# This is a YAML-formatted file.
+
+# Global settings
+global:
+  # Environment name (dev, staging, prod)
+  environment: dev
+  
+  # Storage class for persistent volumes
+  storageClass: ""
+  
+  # Image pull policy
+  imagePullPolicy: IfNotPresent
+  
+  # Common labels to apply to all resources
+  labels:
+    app.kubernetes.io/part-of: cauldron-seos
+    app.kubernetes.io/managed-by: helm
+
+# Nextcloud configuration
+nextcloud:
+  # Image configuration
+  image:
+    repository: nextcloud
+    tag: "27.1.2-apache"
+    pullPolicy: IfNotPresent
+  
+  # Admin configuration
+  admin:
+    username: "admin"
+    # Default password, should be changed in production
+    password: "admin"
+    # Use existingSecret instead of password for production
+    existingSecret: ""
+    existingSecretPasswordKey: "nextcloud-admin-password"
+  
+  # Database configuration
+  db:
+    type: "pgsql"
+    host: "postgres"
+    port: 5432
+    name: "nextcloud"
+    user: "postgres"
+    passwordSecret: "cauldron-secrets"
+    passwordKey: "db-root-password"
+    # Set to true to automatically create the database
+    createDatabase: true
+  
+  # Redis configuration (for caching and locking)
+  redis:
+    enabled: true
+    host: "redis"
+    port: 6379
+  
+  # Trusted domains configuration
+  trustedDomains:
+    - "nextcloud.cauldron.local"
+    - "localhost"
+  
+  # Resource configuration
+  resources:
+    requests:
+      memory: "512Mi"
+      cpu: "250m"
+    limits:
+      memory: "1Gi"
+      cpu: "500m"
+  
+  # Persistence configuration
+  persistence:
+    enabled: true
+    size: 10Gi
+    accessMode: ReadWriteOnce
+  
+  # Replica configuration
+  replicas: 1
+  
+  # Service configuration
+  service:
+    type: ClusterIP
+    port: 80
+  
+  # Ingress configuration
+  ingress:
+    enabled: true
+    className: "traefik"
+    annotations:
+      traefik.ingress.kubernetes.io/router.entrypoints: web
+    hosts:
+      - host: nextcloud.cauldron.local
+        paths:
+          - path: /
+            pathType: Prefix
+    tls: []
+  
+  # Health check configuration
+  livenessProbe:
+    enabled: true
+    initialDelaySeconds: 60
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 6
+    successThreshold: 1
+  
+  readinessProbe:
+    enabled: true
+    initialDelaySeconds: 30
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 6
+    successThreshold: 1
+  
+  # Init container configuration
+  initContainers:
+    waitForDb:
+      enabled: true
+      image: postgres:15-alpine
+      command: ["sh", "-c", "until pg_isready -h $DB_HOST -p $DB_PORT -U $DB_USER; do echo waiting for database; sleep 2; done;"]
+    waitForRedis:
+      enabled: true
+      image: redis:7-alpine
+      command: ["sh", "-c", "until redis-cli -h $REDIS_HOST ping; do echo waiting for redis; sleep 2; done;"]
+  
+  # PHP configuration
+  php:
+    memoryLimit: "512M"
+    uploadMaxFilesize: "1G"
+    postMaxSize: "1G"
+    maxExecutionTime: "300"
+    maxInputTime: "300"
+  
+  # Cron job configuration
+  cron:
+    enabled: true
+    schedule: "*/15 * * * *"
+  
+  # Additional environment variables
+  extraEnv: []
+  
+  # Additional configuration
+  config:
+    # Enable debug mode
+    debug: false
+    # Enable maintenance mode
+    maintenance: false
+    # Default language
+    defaultLanguage: "en"
+    # Default locale
+    defaultLocale: "en_US"
+    # Default phone region
+    defaultPhoneRegion: "US"

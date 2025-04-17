@@ -1,0 +1,114 @@
+version: '3.8'
+
+services:
+  # Primary Relational Store
+  postgres:
+    image: postgres:15-alpine
+    container_name: cauldron-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-cauldron}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-cauldronpassword}
+      POSTGRES_DB: ${POSTGRES_DB:-cauldron}
+      PGDATA: /data/postgres
+    volumes:
+      - postgres_data:/data/postgres
+    ports:
+      - "5432:5432"
+    networks:
+      - cauldron-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-cauldron}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+
+  # Vector Database - Qdrant
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: cauldron-qdrant
+    volumes:
+      - qdrant_data:/qdrant/storage
+    ports:
+      - "6333:6333"  # REST API
+      - "6334:6334"  # gRPC API
+    networks:
+      - cauldron-network
+    restart: unless-stopped
+
+  # Time-Series Database - TimescaleDB
+  timescaledb:
+    image: timescale/timescaledb:latest-pg15
+    container_name: cauldron-timescaledb
+    environment:
+      POSTGRES_USER: ${TIMESCALE_USER:-cauldron}
+      POSTGRES_PASSWORD: ${TIMESCALE_PASSWORD:-cauldronpassword}
+      POSTGRES_DB: ${TIMESCALE_DB:-cauldron_timeseries}
+    volumes:
+      - timescaledb_data:/var/lib/postgresql/data
+    ports:
+      - "5433:5432"
+    networks:
+      - cauldron-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${TIMESCALE_USER:-cauldron}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+
+  # Event-Driven Architecture - RabbitMQ
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: cauldron-rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-cauldron}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-cauldronpassword}
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    ports:
+      - "5672:5672"    # AMQP protocol
+      - "15672:15672"  # Management UI
+    networks:
+      - cauldron-network
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "check_port_connectivity"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+
+  # API Gateway - Traefik
+  traefik:
+    image: traefik:v2.9
+    container_name: cauldron-traefik
+    command:
+      - "--api.insecure=true"  # Enable the dashboard (for development only)
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+    ports:
+      - "80:80"      # HTTP
+      - "443:443"    # HTTPS
+      - "8080:8080"  # Dashboard (for development only)
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - traefik_certs:/etc/traefik/acme
+    networks:
+      - cauldron-network
+    restart: unless-stopped
+
+networks:
+  cauldron-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  qdrant_data:
+  timescaledb_data:
+  rabbitmq_data:
+  traefik_certs:

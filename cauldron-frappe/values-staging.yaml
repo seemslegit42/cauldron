@@ -1,0 +1,65 @@
+# Staging environment values for cauldron-frappe
+
+global:
+  environment: staging
+
+# Frappe configuration for staging
+frappe:
+  # Resource configuration for staging
+  resources:
+    web:
+      requests:
+        memory: "1Gi"
+        cpu: "500m"
+      limits:
+        memory: "2Gi"
+        cpu: "1000m"
+    worker:
+      requests:
+        memory: "1Gi"
+        cpu: "500m"
+      limits:
+        memory: "2Gi"
+        cpu: "1000m"
+    scheduler:
+      requests:
+        memory: "512Mi"
+        cpu: "250m"
+      limits:
+        memory: "1Gi"
+        cpu: "500m"
+    socketio:
+      requests:
+        memory: "512Mi"
+        cpu: "250m"
+      limits:
+        memory: "1Gi"
+        cpu: "500m"
+  
+  # Persistence configuration for staging
+  persistence:
+    size: 20Gi
+  
+  # Replica configuration for staging
+  replicas:
+    web: 2
+    worker: 2
+    scheduler: 1
+    socketio: 2
+  
+  # Ingress configuration for staging
+  ingress:
+    enabled: true
+    hosts:
+      - host: staging.cauldron.ai
+        paths:
+          - path: /
+            pathType: Prefix
+    tls:
+      - secretName: cauldron-staging-tls
+        hosts:
+          - staging.cauldron.ai
+  
+  # Bench configuration for staging
+  bench:
+    developerMode: false

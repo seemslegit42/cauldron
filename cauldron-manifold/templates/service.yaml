@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "cauldron-manifold.fullname" . }}
+  labels:
+    {{- include "cauldron-manifold.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.manifold.service.type }}
+  ports:
+    - port: {{ .Values.manifold.service.port }}
+      targetPort: {{ .Values.manifold.service.targetPort }}
+      protocol: TCP
+      name: http
+  selector:
+    {{- include "cauldron-manifold.selectorLabels" . | nindent 4 }}

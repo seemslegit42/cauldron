@@ -1,0 +1,37 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "cauldron-frappe.web.name" . }}
+  labels:
+    {{- include "cauldron-frappe.labels" . | nindent 4 }}
+    app.kubernetes.io/component: web
+spec:
+  type: {{ .Values.frappe.service.type }}
+  ports:
+    - port: {{ .Values.frappe.service.webPort }}
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    {{- include "cauldron-frappe.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: web
+---
+{{- if .Values.frappe.socketio.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "cauldron-frappe.socketio.name" . }}
+  labels:
+    {{- include "cauldron-frappe.labels" . | nindent 4 }}
+    app.kubernetes.io/component: socketio
+spec:
+  type: {{ .Values.frappe.service.type }}
+  ports:
+    - port: {{ .Values.frappe.service.socketioPort }}
+      targetPort: socketio
+      protocol: TCP
+      name: socketio
+  selector:
+    {{- include "cauldron-frappe.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: socketio
+{{- end }}

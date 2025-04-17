@@ -1,0 +1,61 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: manifold-ui
+  labels:
+    app: manifold-ui
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: manifold-ui
+  template:
+    metadata:
+      labels:
+        app: manifold-ui
+    spec:
+      containers:
+      - name: manifold-ui
+        image: ${REGISTRY_URL}/manifold-ui:${VERSION}
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 80
+        env:
+        - name: REACT_APP_API_URL
+          value: /api
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "256Mi"
+            cpu: "200m"
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 80
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 80
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 1
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: manifold-ui
+spec:
+  selector:
+    app: manifold-ui
+  ports:
+  - port: 80
+    targetPort: 80
+  type: ClusterIP

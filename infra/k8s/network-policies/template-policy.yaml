@@ -1,0 +1,56 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: service-template-policy
+  namespace: cauldron
+  annotations:
+    description: "Template for new service network policies. Copy and customize this file."
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: service-name  # Replace with actual service name
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  # Allow specific services to access this service API
+  - from:
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/part-of: cauldron-seos  # Or more specific label as needed
+    ports:
+    - protocol: TCP
+      port: 8000  # Replace with actual service port
+  
+  egress:
+  # Allow access to dependency services (example - customize as needed)
+  - to:
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/name: postgres  # Replace with actual dependency
+    ports:
+    - protocol: TCP
+      port: 5432  # Replace with actual dependency port
+  
+  # Allow DNS resolution (keep this for all services)
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: kube-system
+      podSelector:
+        matchLabels:
+          k8s-app: kube-dns
+    ports:
+    - protocol: UDP
+      port: 53
+    - protocol: TCP
+      port: 53
+  
+  # Allow metrics to be scraped by Prometheus (if service exposes metrics)
+  - to:
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/name: prometheus
+    ports:
+    - protocol: TCP
+      port: 9090

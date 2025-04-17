@@ -1,0 +1,7 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: cauldron-ingress
+spec:
+  rules:
+  - host: dev.cauldron.example.com  # Replace with your actual dev domain

@@ -1,0 +1,256 @@
+# Default values for cauldron-infra
+# This is a YAML-formatted file.
+
+# Global settings
+global:
+  # Environment name (dev, staging, prod)
+  environment: dev
+  
+  # Storage class for persistent volumes
+  storageClass: ""
+  
+  # Image pull policy
+  imagePullPolicy: IfNotPresent
+  
+  # Common labels to apply to all resources
+  labels:
+    app.kubernetes.io/part-of: cauldron-seos
+    app.kubernetes.io/managed-by: helm
+
+# PostgreSQL configuration
+postgresql:
+  enabled: true
+  # Use the Bitnami PostgreSQL chart
+  auth:
+    username: postgres
+    password: please_change_in_env
+    database: postgres
+  primary:
+    persistence:
+      size: 10Gi
+    resources:
+      requests:
+        memory: "512Mi"
+        cpu: "250m"
+      limits:
+        memory: "1Gi"
+        cpu: "500m"
+    initdb:
+      scriptsConfigMap: postgres-init-scripts
+  metrics:
+    enabled: true
+  
+# TimescaleDB configuration
+timescaledb:
+  enabled: true
+  image:
+    repository: timescale/timescaledb
+    tag: latest-pg15
+    pullPolicy: IfNotPresent
+  auth:
+    username: postgres
+    password: please_change_in_env
+    database: timeseries
+  persistence:
+    enabled: true
+    size: 10Gi
+  resources:
+    requests:
+      memory: "512Mi"
+      cpu: "250m"
+    limits:
+      memory: "1Gi"
+      cpu: "500m"
+  service:
+    port: 5432
+  
+# Qdrant vector database configuration
+qdrant:
+  enabled: true
+  image:
+    repository: qdrant/qdrant
+    tag: latest
+    pullPolicy: IfNotPresent
+  persistence:
+    enabled: true
+    size: 5Gi
+  resources:
+    requests:
+      memory: "512Mi"
+      cpu: "250m"
+    limits:
+      memory: "1Gi"
+      cpu: "500m"
+  service:
+    type: ClusterIP
+    ports:
+      http: 6333
+      grpc: 6334
+  
+# RabbitMQ configuration
+rabbitmq:
+  enabled: true
+  # Use the Bitnami RabbitMQ chart
+  auth:
+    username: guest
+    password: guest
+  persistence:
+    enabled: true
+    size: 5Gi
+  resources:
+    requests:
+      memory: "512Mi"
+      cpu: "250m"
+    limits:
+      memory: "1Gi"
+      cpu: "500m"
+  metrics:
+    enabled: true
+  
+# Redis configuration
+redis:
+  enabled: true
+  # Use the Bitnami Redis chart for the main Redis instance
+  architecture: standalone
+  auth:
+    enabled: false
+  master:
+    persistence:
+      enabled: false
+    resources:
+      requests:
+        memory: "128Mi"
+        cpu: "100m"
+      limits:
+        memory: "256Mi"
+        cpu: "250m"
+  metrics:
+    enabled: true
+
+# Redis instances for Frappe/ERPNext
+redisInstances:
+  enabled: true
+  image:
+    repository: redis
+    tag: 7-alpine
+    pullPolicy: IfNotPresent
+  
+  # Redis Cache instance
+  cache:
+    enabled: true
+    command: ["redis-server", "--save", "", "--maxmemory", "256mb", "--maxmemory-policy", "allkeys-lru"]
+    resources:
+      requests:
+        memory: "128Mi"
+        cpu: "100m"
+      limits:
+        memory: "256Mi"
+        cpu: "200m"
+  
+  # Redis Queue instance
+  queue:
+    enabled: true
+    command: ["redis-server", "--save", "", "--maxmemory", "256mb", "--maxmemory-policy", "allkeys-lru"]
+    resources:
+      requests:
+        memory: "128Mi"
+        cpu: "100m"
+      limits:
+        memory: "256Mi"
+        cpu: "200m"
+  
+  # Redis SocketIO instance
+  socketio:
+    enabled: true
+    command: ["redis-server", "--save", "", "--maxmemory", "128mb", "--maxmemory-policy", "allkeys-lru"]
+    resources:
+      requests:
+        memory: "64Mi"
+        cpu: "50m"
+      limits:
+        memory: "128Mi"
+        cpu: "100m"
+
+# PostgreSQL initialization scripts
+postgresInitScripts:
+  enabled: true
+  # Scripts to initialize PostgreSQL
+  scripts:
+    00-extensions.sql: |
+      -- Enable required extensions for Cauldron sEOS
+      CREATE EXTENSION IF NOT EXISTS vector;
+      CREATE EXTENSION IF NOT EXISTS timescaledb CASCADE;
+      CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+      CREATE EXTENSION IF NOT EXISTS pg_trgm;
+      CREATE EXTENSION IF NOT EXISTS pgcrypto;
+      CREATE EXTENSION IF NOT EXISTS pg_stat_statements;
+      
+      -- Create databases for services
+      CREATE DATABASE IF NOT EXISTS aethercore;
+      CREATE DATABASE IF NOT EXISTS superagi;
+    
+    01-schemas.sql: |
+      -- Create schemas for Cauldron sEOS
+      
+      -- Default schema for shared tables
+      -- public schema already exists by default
+      
+      -- ERPNext core tables
+      CREATE SCHEMA IF NOT EXISTS erp;
+      COMMENT ON SCHEMA erp IS 'ERPNext core tables';
+      
+      -- HR module tables
+      CREATE SCHEMA IF NOT EXISTS hr;
+      COMMENT ON SCHEMA hr IS 'HR module tables';
+      
+      -- CRM module tables
+      CREATE SCHEMA IF NOT EXISTS crm;
+      COMMENT ON SCHEMA crm IS 'CRM module tables';
+      
+      -- Command & Cauldron module tables
+      CREATE SCHEMA IF NOT EXISTS command_cauldron;
+      COMMENT ON SCHEMA command_cauldron IS 'Command & Cauldron module tables for AI Software Development & Autonomous DevOps';
+      
+      -- Synapse module tables
+      CREATE SCHEMA IF NOT EXISTS synapse;
+      COMMENT ON SCHEMA synapse IS 'Synapse module tables for Predictive & Prescriptive Business Intelligence';
+      
+      -- Aegis Protocol module tables
+      CREATE SCHEMA IF NOT EXISTS aegis;
+      COMMENT ON SCHEMA aegis IS 'Aegis Protocol module tables for Proactive & Autonomous Cybersecurity';
+      
+      -- Lore module tables
+      CREATE SCHEMA IF NOT EXISTS lore;
+      COMMENT ON SCHEMA lore IS 'Lore module tables for Collective Intelligence & Knowledge Synthesis';
+      
+      -- Vector database schema
+      CREATE SCHEMA IF NOT EXISTS vector;
+      COMMENT ON SCHEMA vector IS 'Vector database schema for embeddings and similarity search';
+      
+      -- Time-series schema
+      CREATE SCHEMA IF NOT EXISTS timeseries;
+      COMMENT ON SCHEMA timeseries IS 'Time-series schema for metrics and monitoring';
+      
+      -- Audit schema
+      CREATE SCHEMA IF NOT EXISTS audit;
+      COMMENT ON SCHEMA audit IS 'Audit schema for tracking changes and actions';
+      
+      -- Admin schema
+      CREATE SCHEMA IF NOT EXISTS admin;
+      COMMENT ON SCHEMA admin IS 'Admin schema for system administration';
+      
+      -- Storage schema
+      CREATE SCHEMA IF NOT EXISTS storage;
+      COMMENT ON SCHEMA storage IS 'Storage schema for file storage';
+      
+      -- Auth schema
+      CREATE SCHEMA IF NOT EXISTS auth;
+      COMMENT ON SCHEMA auth IS 'Auth schema for authentication and authorization';
+      
+      -- Analytics schema
+      CREATE SCHEMA IF NOT EXISTS analytics;
+      COMMENT ON SCHEMA analytics IS 'Analytics schema for data analytics';
+      
+      -- Integration schema
+      CREATE SCHEMA IF NOT EXISTS integration;
+      COMMENT ON SCHEMA integration IS 'Integration schema for external integrations';

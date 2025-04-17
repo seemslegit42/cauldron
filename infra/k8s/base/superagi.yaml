@@ -1,0 +1,103 @@
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: superagi-data
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: superagi
+  labels:
+    app: superagi
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: superagi
+  template:
+    metadata:
+      labels:
+        app: superagi
+    spec:
+      containers:
+      - name: superagi
+        image: superagi/superagi:latest
+        ports:
+        - containerPort: 8080
+        env:
+        - name: OPENAI_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: cauldron-secrets
+              key: openai-api-key
+              optional: true
+        - name: ANTHROPIC_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: cauldron-secrets
+              key: anthropic-api-key
+              optional: true
+        - name: HUGGINGFACE_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: cauldron-secrets
+              key: huggingface-token
+              optional: true
+        - name: DATABASE_URL
+          value: postgresql://postgres:$(DB_ROOT_PASSWORD)@postgres:5432/superagi
+        - name: VECTOR_DB_URL
+          value: http://qdrant:6333
+        - name: DB_ROOT_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: cauldron-secrets
+              key: db-root-password
+        volumeMounts:
+        - name: superagi-data
+          mountPath: /app/data
+        resources:
+          requests:
+            memory: "1Gi"
+            cpu: "500m"
+          limits:
+            memory: "2Gi"
+            cpu: "1000m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 60
+          periodSeconds: 15
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 3
+          failureThreshold: 3
+      volumes:
+      - name: superagi-data
+        persistentVolumeClaim:
+          claimName: superagi-data
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: superagi
+spec:
+  selector:
+    app: superagi
+  ports:
+  - port: 8080
+    targetPort: 8080
+  type: ClusterIP

@@ -1,0 +1,32 @@
+{{- if .Values.manifold.autoscaling.enabled }}
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{ include "cauldron-manifold.fullname" . }}
+  labels:
+    {{- include "cauldron-manifold.labels" . | nindent 4 }}
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{ include "cauldron-manifold.fullname" . }}
+  minReplicas: {{ .Values.manifold.autoscaling.minReplicas }}
+  maxReplicas: {{ .Values.manifold.autoscaling.maxReplicas }}
+  metrics:
+  {{- if .Values.manifold.autoscaling.targetCPUUtilizationPercentage }}
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: {{ .Values.manifold.autoscaling.targetCPUUtilizationPercentage }}
+  {{- end }}
+  {{- if .Values.manifold.autoscaling.targetMemoryUtilizationPercentage }}
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: {{ .Values.manifold.autoscaling.targetMemoryUtilizationPercentage }}
+  {{- end }}
+{{- end }}

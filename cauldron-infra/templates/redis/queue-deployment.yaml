@@ -1,0 +1,49 @@
+{{- if and .Values.redisInstances.enabled .Values.redisInstances.queue.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "redis-queue.fullname" . }}
+  labels:
+    {{- include "cauldron-infra.labels" . | nindent 4 }}
+    app.kubernetes.io/component: redis-queue
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "cauldron-infra.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: redis-queue
+  template:
+    metadata:
+      labels:
+        {{- include "cauldron-infra.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: redis-queue
+    spec:
+      containers:
+      - name: redis-queue
+        image: "{{ .Values.redisInstances.image.repository }}:{{ .Values.redisInstances.image.tag }}"
+        imagePullPolicy: {{ .Values.redisInstances.image.pullPolicy }}
+        command: {{ .Values.redisInstances.queue.command }}
+        ports:
+        - containerPort: 6379
+          name: redis
+        resources:
+          {{- toYaml .Values.redisInstances.queue.resources | nindent 10 }}
+        livenessProbe:
+          exec:
+            command:
+            - redis-cli
+            - ping
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          exec:
+            command:
+            - redis-cli
+            - ping
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 1
+{{- end }}

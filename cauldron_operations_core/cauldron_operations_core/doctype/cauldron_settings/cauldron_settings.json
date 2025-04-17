@@ -1,0 +1,122 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "creation": "2023-10-01 00:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 0,
+ "engine": "InnoDB",
+ "field_order": [
+  "general_section",
+  "company",
+  "column_break_3",
+  "default_currency",
+  "integration_section",
+  "aethercore_api_endpoint",
+  "hitl_webhook_secret",
+  "column_break_8",
+  "enable_hitl_integration",
+  "agent_section",
+  "default_agent",
+  "column_break_12",
+  "default_agent_confidence"
+ ],
+ "fields": [
+  {
+   "fieldname": "general_section",
+   "fieldtype": "Section Break",
+   "label": "General Settings"
+  },
+  {
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "label": "Default Company",
+   "options": "Company"
+  },
+  {
+   "fieldname": "column_break_3",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "default_currency",
+   "fieldtype": "Link",
+   "label": "Default Currency",
+   "options": "Currency"
+  },
+  {
+   "fieldname": "integration_section",
+   "fieldtype": "Section Break",
+   "label": "Integration Settings"
+  },
+  {
+   "description": "The base URL for the AetherCore API (e.g., http://aethercore:8000/api/v1)",
+   "fieldname": "aethercore_api_endpoint",
+   "fieldtype": "Data",
+   "label": "AetherCore API Endpoint"
+  },
+  {
+   "description": "Secret key for validating HITL webhooks",
+   "fieldname": "hitl_webhook_secret",
+   "fieldtype": "Password",
+   "label": "HITL Webhook Secret"
+  },
+  {
+   "fieldname": "column_break_8",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "1",
+   "fieldname": "enable_hitl_integration",
+   "fieldtype": "Check",
+   "label": "Enable HITL Integration"
+  },
+  {
+   "fieldname": "agent_section",
+   "fieldtype": "Section Break",
+   "label": "Agent Settings"
+  },
+  {
+   "fieldname": "default_agent",
+   "fieldtype": "Link",
+   "label": "Default Agent",
+   "options": "Agent"
+  },
+  {
+   "fieldname": "column_break_12",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "0.8",
+   "description": "Default confidence level for agent actions (0.0 to 1.0)",
+   "fieldname": "default_agent_confidence",
+   "fieldtype": "Float",
+   "label": "Default Agent Confidence"
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "issingle": 1,
+ "links": [],
+ "modified": "2023-10-01 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Operations Core",
+ "name": "Cauldron Settings",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 0,
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "read": 1,
+   "role": "Operations Manager"
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "track_changes": 1
+}

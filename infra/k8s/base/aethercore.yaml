@@ -1,0 +1,198 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: aethercore-config
+data:
+  superagi_config.json: |
+    {
+      "api_key": "${SUPERAGI_API_KEY}",
+      "base_url": "http://superagi:8080",
+      "agent_config": {
+        "default_llm": "gpt-4",
+        "default_agent_timeout": 3600,
+        "max_iterations": 25,
+        "agent_workflow": "hierarchical",
+        "memory_provider": "postgres",
+        "vector_store": "qdrant"
+      },
+      "resources": {
+        "vector_db_url": "http://qdrant:6333",
+        "database_url": "${DATABASE_URL}",
+        "message_broker_url": "${RABBITMQ_URL}"
+      },
+      "logging": {
+        "level": "${LOG_LEVEL}",
+        "format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+        "file": "/app/logs/superagi.log"
+      }
+    }
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: aethercore-data
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: aethercore-logs
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 2Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: aethercore-config
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: aethercore
+  labels:
+    app: aethercore
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: aethercore
+  template:
+    metadata:
+      labels:
+        app: aethercore
+    spec:
+      containers:
+      - name: aethercore
+        image: ${REGISTRY_URL}/aethercore:${VERSION}
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8000
+        env:
+        - name: DATABASE_URL
+          value: postgresql://postgres:$(DB_ROOT_PASSWORD)@postgres:5432/aethercore
+        - name: RABBITMQ_URL
+          value: amqp://$(RABBITMQ_USER):$(RABBITMQ_PASSWORD)@rabbitmq:5672/
+        - name: SUPERAGI_API_URL
+          value: http://superagi:8080
+        - name: SUPERAGI_CONFIG_PATH
+          value: /app/config/superagi_config.json
+        - name: SUPERAGI_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: cauldron-secrets
+              key: superagi-api-key
+        - name: OPENAI_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: cauldron-secrets
+              key: openai-api-key
+              optional: true
+        - name: ANTHROPIC_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: cauldron-secrets
+              key: anthropic-api-key
+              optional: true
+        - name: HUGGINGFACE_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: cauldron-secrets
+              key: huggingface-token
+              optional: true
+        - name: DEBUG
+          value: "False"
+        - name: LOG_LEVEL
+          value: "INFO"
+        - name: HOST
+          value: "0.0.0.0"
+        - name: PORT
+          value: "8000"
+        - name: DB_ROOT_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: cauldron-secrets
+              key: db-root-password
+        - name: RABBITMQ_USER
+          valueFrom:
+            secretKeyRef:
+              name: cauldron-secrets
+              key: rabbitmq-user
+        - name: RABBITMQ_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: cauldron-secrets
+              key: rabbitmq-password
+        volumeMounts:
+        - name: aethercore-data
+          mountPath: /app/data
+        - name: aethercore-logs
+          mountPath: /app/logs
+        - name: aethercore-config
+          mountPath: /app/config
+        - name: aethercore-config-map
+          mountPath: /app/config/superagi_config.json
+          subPath: superagi_config.json
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 15
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+      volumes:
+      - name: aethercore-data
+        persistentVolumeClaim:
+          claimName: aethercore-data
+      - name: aethercore-logs
+        persistentVolumeClaim:
+          claimName: aethercore-logs
+      - name: aethercore-config
+        persistentVolumeClaim:
+          claimName: aethercore-config
+      - name: aethercore-config-map
+        configMap:
+          name: aethercore-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: aethercore
+spec:
+  selector:
+    app: aethercore
+  ports:
+  - port: 8000
+    targetPort: 8000
+  type: ClusterIP

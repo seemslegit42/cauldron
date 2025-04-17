@@ -1,0 +1,185 @@
+# Default values for cauldron-frappe
+# This is a YAML-formatted file.
+
+# Global settings
+global:
+  # Environment name (dev, staging, prod)
+  environment: dev
+  
+  # Storage class for persistent volumes
+  storageClass: ""
+  
+  # Image pull policy
+  imagePullPolicy: IfNotPresent
+  
+  # Common labels to apply to all resources
+  labels:
+    app.kubernetes.io/part-of: cauldron-seos
+    app.kubernetes.io/managed-by: helm
+
+# Frappe configuration
+frappe:
+  # Image configuration
+  image:
+    repository: frappe/bench
+    tag: latest
+    pullPolicy: IfNotPresent
+  
+  # Site configuration
+  site:
+    name: "cauldron.local"
+    adminPassword: "admin"
+  
+  # Database configuration
+  db:
+    host: "postgres"
+    port: 5432
+    name: "frappe"
+    user: "postgres"
+    passwordSecret: "cauldron-secrets"
+    passwordKey: "db-root-password"
+  
+  # Redis configuration
+  redis:
+    cacheHost: "redis-cache"
+    queueHost: "redis-queue"
+    socketioHost: "redis-socketio"
+    port: 6379
+  
+  # Resource configuration
+  resources:
+    web:
+      requests:
+        memory: "512Mi"
+        cpu: "250m"
+      limits:
+        memory: "1Gi"
+        cpu: "500m"
+    worker:
+      requests:
+        memory: "512Mi"
+        cpu: "250m"
+      limits:
+        memory: "1Gi"
+        cpu: "500m"
+    scheduler:
+      requests:
+        memory: "256Mi"
+        cpu: "100m"
+      limits:
+        memory: "512Mi"
+        cpu: "250m"
+    socketio:
+      requests:
+        memory: "256Mi"
+        cpu: "100m"
+      limits:
+        memory: "512Mi"
+        cpu: "250m"
+  
+  # Persistence configuration
+  persistence:
+    enabled: true
+    size: 10Gi
+    accessMode: ReadWriteOnce
+  
+  # Replica configuration
+  replicas:
+    web: 1
+    worker: 1
+    scheduler: 1
+    socketio: 1
+  
+  # Service configuration
+  service:
+    type: ClusterIP
+    webPort: 8000
+    socketioPort: 9000
+  
+  # Ingress configuration
+  ingress:
+    enabled: true
+    className: "traefik"
+    annotations:
+      traefik.ingress.kubernetes.io/router.entrypoints: web
+    hosts:
+      - host: cauldron.local
+        paths:
+          - path: /
+            pathType: Prefix
+    tls: []
+  
+  # Frappe/ERPNext apps to install
+  apps:
+    - name: "erpnext"
+      branch: "version-15"
+    - name: "hrms"
+      branch: "version-15"
+  
+  # Custom Cauldron apps to install
+  customApps:
+    - name: "cauldron_operations_core"
+      repo: "https://github.com/seemslegit42/cauldron_operations_core.git"
+      branch: "main"
+    - name: "cauldron_synapse"
+      repo: "https://github.com/seemslegit42/cauldron_synapse.git"
+      branch: "main"
+    - name: "cauldron_aegis_protocol"
+      repo: "https://github.com/seemslegit42/cauldron_aegis_protocol.git"
+      branch: "main"
+    - name: "cauldron_lore"
+      repo: "https://github.com/seemslegit42/cauldron_lore.git"
+      branch: "main"
+    - name: "cauldron_command_cauldron"
+      repo: "https://github.com/seemslegit42/cauldron_command_cauldron.git"
+      branch: "main"
+  
+  # Bench configuration
+  bench:
+    developerMode: true
+    serveDefaultSite: true
+    autoUpdate: false
+    shallowClone: true
+  
+  # Health check configuration
+  livenessProbe:
+    enabled: true
+    initialDelaySeconds: 60
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 6
+    successThreshold: 1
+  
+  readinessProbe:
+    enabled: true
+    initialDelaySeconds: 30
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 6
+    successThreshold: 1
+  
+  # Worker configuration
+  worker:
+    queues:
+      - default
+      - short
+      - long
+  
+  # Scheduler configuration
+  scheduler:
+    enabled: true
+  
+  # Socket.IO configuration
+  socketio:
+    enabled: true
+  
+  # Init container configuration
+  initContainers:
+    waitForDb:
+      enabled: true
+      image: postgres:15-alpine
+      command: ["sh", "-c", "until pg_isready -h $DB_HOST -p $DB_PORT -U $DB_USER; do echo waiting for database; sleep 2; done;"]
+    waitForRedis:
+      enabled: true
+      image: redis:7-alpine
+      command: ["sh", "-c", "until redis-cli -h $REDIS_CACHE_HOST ping && redis-cli -h $REDIS_QUEUE_HOST ping && redis-cli -h $REDIS_SOCKETIO_HOST ping; do echo waiting for redis; sleep 2; done;"]

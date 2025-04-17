@@ -1,0 +1,196 @@
+name: Build SuperAGI Docker Images
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+    paths:
+      - 'superagi/**'
+      - '.github/workflows/build-superagi-images.yml'
+  pull_request:
+    paths:
+      - 'superagi/**'
+      - '.github/workflows/build-superagi-images.yml'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version tag for the images'
+        required: false
+        default: 'latest'
+      environment:
+        description: 'Environment to build for'
+        required: false
+        default: 'dev'
+        type: choice
+        options:
+          - dev
+          - staging
+          - prod
+      superagi_version:
+        description: 'SuperAGI version/branch to use'
+        required: false
+        default: 'main'
+
+env:
+  REGISTRY: ghcr.io
+  REGISTRY_URL: ghcr.io/${{ github.repository_owner }}
+  SUPERAGI_VERSION: ${{ github.event.inputs.superagi_version || 'main' }}
+
+jobs:
+  build-superagi-base:
+    name: Build SuperAGI Base Image
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+      
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v2
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Extract metadata for Docker
+        id: meta
+        uses: docker/metadata-action@v4
+        with:
+          images: ${{ env.REGISTRY_URL }}/superagi-base
+          tags: |
+            type=raw,value=${{ github.event.inputs.version || 'latest' }}
+            type=ref,event=branch
+            type=sha,format=short
+      
+      - name: Build and push SuperAGI base image
+        uses: docker/build-push-action@v4
+        with:
+          context: ./superagi
+          file: ./superagi/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            SUPERAGI_VERSION=${{ env.SUPERAGI_VERSION }}
+            ENVIRONMENT=${{ github.event.inputs.environment || 'dev' }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  build-superagi-custom:
+    name: Build SuperAGI Custom Image
+    needs: build-superagi-base
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+      
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v2
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Extract metadata for Docker
+        id: meta
+        uses: docker/metadata-action@v4
+        with:
+          images: ${{ env.REGISTRY_URL }}/superagi
+          tags: |
+            type=raw,value=${{ github.event.inputs.version || 'latest' }}
+            type=ref,event=branch
+            type=sha,format=short
+      
+      - name: Create Dockerfile for custom image
+        run: |
+          cat > Dockerfile.custom << EOF
+          FROM ${{ env.REGISTRY_URL }}/superagi-base:${{ github.event.inputs.version || 'latest' }}
+          
+          # Copy custom configurations and extensions
+          COPY ./superagi/custom/ /app/custom/
+          
+          # Install additional dependencies if needed
+          RUN if [ -f /app/custom/requirements.txt ]; then \
+                pip install --no-cache-dir -r /app/custom/requirements.txt; \
+              fi
+          
+          # Copy custom entrypoint script
+          COPY ./superagi/entrypoint.sh /app/entrypoint.sh
+          RUN chmod +x /app/entrypoint.sh
+          
+          # Set environment variables for Cauldron integration
+          ENV CAULDRON_INTEGRATION=true
+          
+          # Expose port
+          EXPOSE 8080
+          
+          # Set entrypoint
+          ENTRYPOINT ["/app/entrypoint.sh"]
+          EOF
+      
+      - name: Build and push SuperAGI custom image
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          file: ./Dockerfile.custom
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  update-helm-chart:
+    name: Update SuperAGI Helm Chart
+    needs: build-superagi-custom
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Set image tag
+        id: set-tag
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "IMAGE_TAG=${{ github.event.inputs.version }}" >> $GITHUB_ENV
+          elif [ "${{ github.ref }}" = "refs/heads/main" ]; then
+            echo "IMAGE_TAG=latest" >> $GITHUB_ENV
+          else
+            echo "IMAGE_TAG=sha-$(git rev-parse --short HEAD)" >> $GITHUB_ENV
+          fi
+      
+      - name: Update Helm chart values
+        run: |
+          # Update the image repository and tag in the Helm chart values
+          if [ -f "cauldron-superagi/values.yaml" ]; then
+            sed -i "s|repository:.*superagi.*|repository: ${{ env.REGISTRY_URL }}/superagi|g" cauldron-superagi/values.yaml
+            sed -i "s|tag:.*|tag: \"${{ env.IMAGE_TAG }}\"|g" cauldron-superagi/values.yaml
+            
+            # Update environment-specific values files
+            for env in dev staging prod; do
+              if [ -f "cauldron-superagi/values-${env}.yaml" ]; then
+                sed -i "s|tag:.*|tag: \"${{ env.IMAGE_TAG }}\"|g" cauldron-superagi/values-${env}.yaml
+              fi
+            done
+          fi
+      
+      - name: Commit and push changes
+        uses: stefanzweifel/git-auto-commit-action@v4
+        with:
+          commit_message: "chore: Update SuperAGI image tag to ${{ env.IMAGE_TAG }}"
+          file_pattern: cauldron-superagi/values*.yaml

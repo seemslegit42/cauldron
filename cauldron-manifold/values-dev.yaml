@@ -1,0 +1,40 @@
+# Development environment values for cauldron-manifold
+
+global:
+  environment: dev
+
+# Manifold UI configuration for development
+manifold:
+  # Image configuration for development
+  image:
+    tag: "dev"
+    pullPolicy: Always
+  
+  # Resource configuration for development
+  resources:
+    requests:
+      memory: "128Mi"
+      cpu: "100m"
+    limits:
+      memory: "256Mi"
+      cpu: "200m"
+  
+  # Replica configuration for development
+  replicas: 1
+  
+  # Ingress configuration for development
+  ingress:
+    enabled: true
+    hosts:
+      - host: cauldron.local
+        paths:
+          - path: /
+            pathType: Prefix
+  
+  # API configuration for development
+  api:
+    url: "/api"
+  
+  # Autoscaling configuration for development
+  autoscaling:
+    enabled: false

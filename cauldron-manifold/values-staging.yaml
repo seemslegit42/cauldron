@@ -1,0 +1,51 @@
+# Staging environment values for cauldron-manifold
+
+global:
+  environment: staging
+
+# Manifold UI configuration for staging
+manifold:
+  # Image configuration for staging
+  image:
+    tag: "staging"
+    pullPolicy: Always
+  
+  # Resource configuration for staging
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "200m"
+    limits:
+      memory: "512Mi"
+      cpu: "400m"
+  
+  # Replica configuration for staging
+  replicas: 2
+  
+  # Ingress configuration for staging
+  ingress:
+    enabled: true
+    annotations:
+      kubernetes.io/ingress.class: traefik
+      traefik.ingress.kubernetes.io/router.entrypoints: websecure
+      cert-manager.io/cluster-issuer: letsencrypt-staging
+    hosts:
+      - host: staging.cauldron.ai
+        paths:
+          - path: /
+            pathType: Prefix
+    tls:
+      - secretName: manifold-staging-tls
+        hosts:
+          - staging.cauldron.ai
+  
+  # API configuration for staging
+  api:
+    url: "/api"
+  
+  # Autoscaling configuration for staging
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 5
+    targetCPUUtilizationPercentage: 70

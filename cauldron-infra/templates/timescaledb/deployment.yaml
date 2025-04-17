@@ -1,0 +1,71 @@
+{{- if .Values.timescaledb.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "timescaledb.fullname" . }}
+  labels:
+    {{- include "cauldron-infra.labels" . | nindent 4 }}
+    app.kubernetes.io/component: timescaledb
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "cauldron-infra.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: timescaledb
+  template:
+    metadata:
+      labels:
+        {{- include "cauldron-infra.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: timescaledb
+    spec:
+      containers:
+      - name: timescaledb
+        image: "{{ .Values.timescaledb.image.repository }}:{{ .Values.timescaledb.image.tag }}"
+        imagePullPolicy: {{ .Values.timescaledb.image.pullPolicy }}
+        ports:
+        - containerPort: 5432
+          name: postgres
+        env:
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: cauldron-secrets
+              key: timescale-password
+        - name: POSTGRES_USER
+          value: {{ .Values.timescaledb.auth.username | quote }}
+        - name: POSTGRES_DB
+          value: {{ .Values.timescaledb.auth.database | quote }}
+        volumeMounts:
+        - name: timescaledb-data
+          mountPath: /var/lib/postgresql/data
+        resources:
+          {{- toYaml .Values.timescaledb.resources | nindent 10 }}
+        livenessProbe:
+          exec:
+            command:
+            - pg_isready
+            - -U
+            - {{ .Values.timescaledb.auth.username | quote }}
+            - -h
+            - localhost
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          exec:
+            command:
+            - pg_isready
+            - -U
+            - {{ .Values.timescaledb.auth.username | quote }}
+            - -h
+            - localhost
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 1
+      volumes:
+      - name: timescaledb-data
+        persistentVolumeClaim:
+          claimName: {{ include "timescaledb.fullname" . }}-data
+{{- end }}

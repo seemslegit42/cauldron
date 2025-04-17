@@ -1,0 +1,150 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "cauldron-nextcloud.fullname" . }}
+  labels:
+    {{- include "cauldron-nextcloud.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.nextcloud.replicas }}
+  selector:
+    matchLabels:
+      {{- include "cauldron-nextcloud.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "cauldron-nextcloud.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- if or .Values.nextcloud.initContainers.waitForDb.enabled .Values.nextcloud.initContainers.waitForRedis.enabled }}
+      initContainers:
+        {{- if .Values.nextcloud.initContainers.waitForDb.enabled }}
+        - name: wait-for-db
+          image: {{ .Values.nextcloud.initContainers.waitForDb.image }}
+          env:
+            - name: DB_HOST
+              value: {{ .Values.nextcloud.db.host }}
+            - name: DB_PORT
+              value: {{ .Values.nextcloud.db.port | quote }}
+            - name: DB_USER
+              value: {{ .Values.nextcloud.db.user }}
+            - name: PGPASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.nextcloud.db.passwordSecret }}
+                  key: {{ .Values.nextcloud.db.passwordKey }}
+          command: {{ .Values.nextcloud.initContainers.waitForDb.command }}
+        {{- end }}
+        {{- if and .Values.nextcloud.initContainers.waitForRedis.enabled .Values.nextcloud.redis.enabled }}
+        - name: wait-for-redis
+          image: {{ .Values.nextcloud.initContainers.waitForRedis.image }}
+          env:
+            - name: REDIS_HOST
+              value: {{ .Values.nextcloud.redis.host }}
+            - name: REDIS_PORT
+              value: {{ .Values.nextcloud.redis.port | quote }}
+          command: {{ .Values.nextcloud.initContainers.waitForRedis.command }}
+        {{- end }}
+      {{- end }}
+      containers:
+        - name: nextcloud
+          image: "{{ .Values.nextcloud.image.repository }}:{{ .Values.nextcloud.image.tag }}"
+          imagePullPolicy: {{ .Values.nextcloud.image.pullPolicy }}
+          command: ["/bin/bash", "/entrypoint-custom/entrypoint.sh"]
+          args: ["apache2-foreground"]
+          env:
+            - name: NEXTCLOUD_ADMIN_USER
+              value: {{ .Values.nextcloud.admin.username }}
+            - name: NEXTCLOUD_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "cauldron-nextcloud.secretName" . }}
+                  key: {{ .Values.nextcloud.admin.existingSecretPasswordKey }}
+            - name: DB_TYPE
+              value: {{ .Values.nextcloud.db.type }}
+            - name: POSTGRES_HOST
+              value: {{ .Values.nextcloud.db.host }}
+            - name: POSTGRES_PORT
+              value: {{ .Values.nextcloud.db.port | quote }}
+            - name: POSTGRES_DB
+              value: {{ .Values.nextcloud.db.name }}
+            - name: POSTGRES_USER
+              value: {{ .Values.nextcloud.db.user }}
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.nextcloud.db.passwordSecret }}
+                  key: {{ .Values.nextcloud.db.passwordKey }}
+            - name: CREATE_DB
+              value: {{ .Values.nextcloud.db.createDatabase | quote }}
+            {{- if .Values.nextcloud.redis.enabled }}
+            - name: REDIS_HOST
+              value: {{ .Values.nextcloud.redis.host }}
+            - name: REDIS_PORT
+              value: {{ .Values.nextcloud.redis.port | quote }}
+            {{- end }}
+            - name: NEXTCLOUD_TRUSTED_DOMAINS
+              value: {{ join "," .Values.nextcloud.trustedDomains }}
+            - name: PHP_MEMORY_LIMIT
+              value: {{ .Values.nextcloud.php.memoryLimit }}
+            - name: NEXTCLOUD_DEBUG
+              value: {{ .Values.nextcloud.config.debug | quote }}
+            - name: NEXTCLOUD_MAINTENANCE
+              value: {{ .Values.nextcloud.config.maintenance | quote }}
+            - name: NEXTCLOUD_DEFAULT_LANGUAGE
+              value: {{ .Values.nextcloud.config.defaultLanguage }}
+            - name: NEXTCLOUD_DEFAULT_LOCALE
+              value: {{ .Values.nextcloud.config.defaultLocale }}
+            - name: NEXTCLOUD_DEFAULT_PHONE_REGION
+              value: {{ .Values.nextcloud.config.defaultPhoneRegion }}
+            {{- range .Values.nextcloud.extraEnv }}
+            - name: {{ .name }}
+              value: {{ .value | quote }}
+            {{- end }}
+          ports:
+            - name: http
+              containerPort: 80
+              protocol: TCP
+          volumeMounts:
+            - name: nextcloud-data
+              mountPath: /var/www/html
+            - name: nextcloud-config
+              mountPath: /entrypoint-custom/entrypoint.sh
+              subPath: entrypoint.sh
+            - name: nextcloud-config
+              mountPath: /usr/local/etc/php/conf.d/nextcloud.ini
+              subPath: php.ini
+          resources:
+            {{- toYaml .Values.nextcloud.resources | nindent 12 }}
+          {{- if .Values.nextcloud.livenessProbe.enabled }}
+          livenessProbe:
+            httpGet:
+              path: /status.php
+              port: http
+            initialDelaySeconds: {{ .Values.nextcloud.livenessProbe.initialDelaySeconds }}
+            periodSeconds: {{ .Values.nextcloud.livenessProbe.periodSeconds }}
+            timeoutSeconds: {{ .Values.nextcloud.livenessProbe.timeoutSeconds }}
+            failureThreshold: {{ .Values.nextcloud.livenessProbe.failureThreshold }}
+            successThreshold: {{ .Values.nextcloud.livenessProbe.successThreshold }}
+          {{- end }}
+          {{- if .Values.nextcloud.readinessProbe.enabled }}
+          readinessProbe:
+            httpGet:
+              path: /status.php
+              port: http
+            initialDelaySeconds: {{ .Values.nextcloud.readinessProbe.initialDelaySeconds }}
+            periodSeconds: {{ .Values.nextcloud.readinessProbe.periodSeconds }}
+            timeoutSeconds: {{ .Values.nextcloud.readinessProbe.timeoutSeconds }}
+            failureThreshold: {{ .Values.nextcloud.readinessProbe.failureThreshold }}
+            successThreshold: {{ .Values.nextcloud.readinessProbe.successThreshold }}
+          {{- end }}
+      volumes:
+        - name: nextcloud-config
+          configMap:
+            name: {{ include "cauldron-nextcloud.configMapName" . }}
+            defaultMode: 0755
+        - name: nextcloud-data
+          {{- if .Values.nextcloud.persistence.enabled }}
+          persistentVolumeClaim:
+            claimName: {{ include "cauldron-nextcloud.pvcName" . }}
+          {{- else }}
+          emptyDir: {}
+          {{- end }}

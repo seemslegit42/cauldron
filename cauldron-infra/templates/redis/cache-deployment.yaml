@@ -1,0 +1,49 @@
+{{- if and .Values.redisInstances.enabled .Values.redisInstances.cache.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "redis-cache.fullname" . }}
+  labels:
+    {{- include "cauldron-infra.labels" . | nindent 4 }}
+    app.kubernetes.io/component: redis-cache
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "cauldron-infra.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: redis-cache
+  template:
+    metadata:
+      labels:
+        {{- include "cauldron-infra.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: redis-cache
+    spec:
+      containers:
+      - name: redis-cache
+        image: "{{ .Values.redisInstances.image.repository }}:{{ .Values.redisInstances.image.tag }}"
+        imagePullPolicy: {{ .Values.redisInstances.image.pullPolicy }}
+        command: {{ .Values.redisInstances.cache.command }}
+        ports:
+        - containerPort: 6379
+          name: redis
+        resources:
+          {{- toYaml .Values.redisInstances.cache.resources | nindent 10 }}
+        livenessProbe:
+          exec:
+            command:
+            - redis-cli
+            - ping
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          exec:
+            command:
+            - redis-cli
+            - ping
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 1
+{{- end }}

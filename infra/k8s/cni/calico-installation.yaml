@@ -1,0 +1,44 @@
+---
+# Source: https://docs.tigera.io/calico/latest/getting-started/kubernetes/self-managed-onprem/onpremises
+apiVersion: operator.tigera.io/v1
+kind: Installation
+metadata:
+  name: default
+spec:
+  # Configures Calico networking.
+  calicoNetwork:
+    # Note: The ipPools section cannot be modified post-install.
+    ipPools:
+    - blockSize: 26
+      cidr: 192.168.0.0/16
+      encapsulation: VXLANCrossSubnet
+      natOutgoing: Enabled
+      nodeSelector: all()
+    # Enable BGP for advanced networking capabilities
+    nodeAddressAutodetectionV4:
+      kubernetes: NodeInternalIP
+  # Set MTU for VXLAN interfaces
+  mtu: 1450
+  # Enable BPF for improved performance and security
+  bpf:
+    enabled: true
+    # Enable eBPF dataplane mode for even better performance
+    bpfDataplane: Enabled
+    # Enable program attach on external interfaces
+    bpfExternalServiceMode: Tunnel
+  # Enable Prometheus metrics
+  prometheusMetricsEnabled: true
+  # Enable strict affinity for improved security
+  nodeMetricsPort: 9091
+  # Configure component resource requests/limits
+  componentResources:
+  - componentName: Node
+    resourceRequests:
+      cpu: 250m
+      memory: 150Mi
+    resourceLimits:
+      cpu: 500m
+      memory: 300Mi
+  # Enable Wireguard encryption for improved security
+  # Note: This requires Linux kernel 5.6+ or backported support
+  wireguard: Enabled

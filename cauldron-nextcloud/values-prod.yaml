@@ -1,0 +1,52 @@
+# Production environment values for cauldron-nextcloud
+
+global:
+  environment: prod
+
+# Nextcloud configuration for production
+nextcloud:
+  # Resource configuration for production
+  resources:
+    requests:
+      memory: "2Gi"
+      cpu: "1000m"
+    limits:
+      memory: "4Gi"
+      cpu: "2000m"
+  
+  # Persistence configuration for production
+  persistence:
+    size: 50Gi
+  
+  # Replica configuration for production
+  replicas: 3
+  
+  # Ingress configuration for production
+  ingress:
+    enabled: true
+    annotations:
+      kubernetes.io/ingress.class: traefik
+      traefik.ingress.kubernetes.io/router.entrypoints: websecure
+      cert-manager.io/cluster-issuer: letsencrypt-prod
+    hosts:
+      - host: nextcloud.cauldron.ai
+        paths:
+          - path: /
+            pathType: Prefix
+    tls:
+      - secretName: nextcloud-prod-tls
+        hosts:
+          - nextcloud.cauldron.ai
+  
+  # PHP configuration for production
+  php:
+    memoryLimit: "1G"
+    uploadMaxFilesize: "2G"
+    postMaxSize: "2G"
+    maxExecutionTime: "600"
+    maxInputTime: "600"
+  
+  # Additional configuration for production
+  config:
+    debug: false
+    maintenance: false

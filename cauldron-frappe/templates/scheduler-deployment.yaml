@@ -1,0 +1,97 @@
+{{- if .Values.frappe.scheduler.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "cauldron-frappe.scheduler.name" . }}
+  labels:
+    {{- include "cauldron-frappe.labels" . | nindent 4 }}
+    app.kubernetes.io/component: scheduler
+spec:
+  replicas: {{ .Values.frappe.replicas.scheduler }}
+  selector:
+    matchLabels:
+      {{- include "cauldron-frappe.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: scheduler
+  template:
+    metadata:
+      labels:
+        {{- include "cauldron-frappe.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: scheduler
+    spec:
+      {{- if .Values.frappe.initContainers.waitForDb.enabled }}
+      initContainers:
+        - name: wait-for-db
+          image: {{ .Values.frappe.initContainers.waitForDb.image }}
+          env:
+            - name: DB_HOST
+              value: {{ .Values.frappe.db.host }}
+            - name: DB_PORT
+              value: {{ .Values.frappe.db.port | quote }}
+            - name: DB_USER
+              value: {{ .Values.frappe.db.user }}
+            - name: PGPASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.frappe.db.passwordSecret }}
+                  key: {{ .Values.frappe.db.passwordKey }}
+          command: {{ .Values.frappe.initContainers.waitForDb.command }}
+        {{- if .Values.frappe.initContainers.waitForRedis.enabled }}
+        - name: wait-for-redis
+          image: {{ .Values.frappe.initContainers.waitForRedis.image }}
+          env:
+            - name: REDIS_CACHE_HOST
+              value: {{ .Values.frappe.redis.cacheHost }}
+            - name: REDIS_QUEUE_HOST
+              value: {{ .Values.frappe.redis.queueHost }}
+            - name: REDIS_SOCKETIO_HOST
+              value: {{ .Values.frappe.redis.socketioHost }}
+            - name: REDIS_PORT
+              value: {{ .Values.frappe.redis.port | quote }}
+          command: {{ .Values.frappe.initContainers.waitForRedis.command }}
+        {{- end }}
+      {{- end }}
+      containers:
+        - name: scheduler
+          image: "{{ .Values.frappe.image.repository }}:{{ .Values.frappe.image.tag }}"
+          imagePullPolicy: {{ .Values.frappe.image.pullPolicy }}
+          command: ["/bin/bash", "/opt/frappe/scheduler-entrypoint.sh"]
+          env:
+            - name: SITE_NAME
+              value: {{ .Values.frappe.site.name }}
+            - name: DB_HOST
+              value: {{ .Values.frappe.db.host }}
+            - name: DB_PORT
+              value: {{ .Values.frappe.db.port | quote }}
+            - name: DB_NAME
+              value: {{ .Values.frappe.db.name }}
+            - name: DB_USER
+              value: {{ .Values.frappe.db.user }}
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.frappe.db.passwordSecret }}
+                  key: {{ .Values.frappe.db.passwordKey }}
+          volumeMounts:
+            - name: frappe-config
+              mountPath: /home/frappe/frappe-bench/sites/common_site_config.json
+              subPath: common_site_config.json
+            - name: frappe-config
+              mountPath: /opt/frappe/scheduler-entrypoint.sh
+              subPath: scheduler-entrypoint.sh
+            - name: frappe-data
+              mountPath: /home/frappe/frappe-bench/sites
+          resources:
+            {{- toYaml .Values.frappe.resources.scheduler | nindent 12 }}
+      volumes:
+        - name: frappe-config
+          configMap:
+            name: {{ include "cauldron-frappe.configmap.name" . }}
+            defaultMode: 0755
+        - name: frappe-data
+          {{- if .Values.frappe.persistence.enabled }}
+          persistentVolumeClaim:
+            claimName: {{ include "cauldron-frappe.pvc.name" . }}
+          {{- else }}
+          emptyDir: {}
+          {{- end }}
+{{- end }}

@@ -1,4 +1,5 @@
 {
     "zencoder.shellTool.commandConfirmationPolicy": "neverAsk",
-    "zencoder.enableRepoIndexing": true
+    "zencoder.enableRepoIndexing": true,
+    "azureTerraform.checkTerraformCmd": false
 }

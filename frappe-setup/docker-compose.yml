@@ -1,0 +1,106 @@
+version: '3.8'
+
+services:
+  # PostgreSQL database
+  postgres:
+    image: postgres:15
+    container_name: frappe-postgres
+    environment:
+      POSTGRES_PASSWORD: ${DB_ROOT_PASSWORD:-frappe}
+      POSTGRES_USER: postgres
+      POSTGRES_DB: postgres
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    networks:
+      - frappe-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -h localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis for cache
+  redis-cache:
+    image: redis:7-alpine
+    container_name: frappe-redis-cache
+    command: redis-server --save "" --maxmemory 256mb --maxmemory-policy allkeys-lru
+    networks:
+      - frappe-net
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis for queue
+  redis-queue:
+    image: redis:7-alpine
+    container_name: frappe-redis-queue
+    command: redis-server --save "" --maxmemory 256mb --maxmemory-policy allkeys-lru
+    networks:
+      - frappe-net
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis for socketio
+  redis-socketio:
+    image: redis:7-alpine
+    container_name: frappe-redis-socketio
+    command: redis-server --save "" --maxmemory 256mb --maxmemory-policy allkeys-lru
+    networks:
+      - frappe-net
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Frappe web server
+  frappe:
+    build:
+      context: ..
+      dockerfile: frappe/Dockerfile
+    container_name: frappe-web
+    command: sleep infinity  # Keep container running for setup
+    environment:
+      - SITE_NAME=${SITE_NAME:-cauldron.local}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD:-admin}
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_NAME=${DB_NAME:-frappe}
+      - DB_USER=postgres
+      - DB_ROOT_PASSWORD=${DB_ROOT_PASSWORD:-frappe}
+      - REDIS_CACHE_HOST=redis-cache
+      - REDIS_QUEUE_HOST=redis-queue
+      - REDIS_SOCKETIO_HOST=redis-socketio
+    volumes:
+      - frappe_sites:/home/frappe/frappe-bench/sites
+      - frappe_apps:/home/frappe/frappe-bench/apps
+    ports:
+      - "8000:8000"
+      - "9000:9000"
+    networks:
+      - frappe-net
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis-cache:
+        condition: service_healthy
+      redis-queue:
+        condition: service_healthy
+      redis-socketio:
+        condition: service_healthy
+
+networks:
+  frappe-net:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  frappe_sites:
+  frappe_apps:

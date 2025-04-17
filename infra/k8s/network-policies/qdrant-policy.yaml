@@ -1,0 +1,51 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: qdrant-network-policy
+  namespace: cauldron
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: qdrant
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  # Allow REST API access from services that need a vector database connection
+  - from:
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/part-of: cauldron-seos
+    ports:
+    - protocol: TCP
+      port: 6333
+  # Allow gRPC access from internal services
+  - from:
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/part-of: cauldron-seos
+    ports:
+    - protocol: TCP
+      port: 6334
+  egress:
+  # Allow DNS resolution
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: kube-system
+      podSelector:
+        matchLabels:
+          k8s-app: kube-dns
+    ports:
+    - protocol: UDP
+      port: 53
+    - protocol: TCP
+      port: 53
+  # Allow metrics to be scraped by Prometheus
+  - to:
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/name: prometheus
+    ports:
+    - protocol: TCP
+      port: 9090

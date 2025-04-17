@@ -1,0 +1,37 @@
+{{- if .Values.nextcloud.cron.enabled }}
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ include "cauldron-nextcloud.fullname" . }}-cron
+  labels:
+    {{- include "cauldron-nextcloud.labels" . | nindent 4 }}
+spec:
+  schedule: {{ .Values.nextcloud.cron.schedule | quote }}
+  concurrencyPolicy: Forbid
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+            - name: nextcloud-cron
+              image: "{{ .Values.nextcloud.image.repository }}:{{ .Values.nextcloud.image.tag }}"
+              imagePullPolicy: {{ .Values.nextcloud.image.pullPolicy }}
+              command: ["/bin/sh", "-c"]
+              args:
+                - php -f /var/www/html/cron.php
+              volumeMounts:
+                - name: nextcloud-data
+                  mountPath: /var/www/html
+              resources:
+                requests:
+                  cpu: 100m
+                  memory: 128Mi
+                limits:
+                  cpu: 200m
+                  memory: 256Mi
+          volumes:
+            - name: nextcloud-data
+              persistentVolumeClaim:
+                claimName: {{ include "cauldron-nextcloud.pvcName" . }}
+          restartPolicy: OnFailure
+{{- end }}

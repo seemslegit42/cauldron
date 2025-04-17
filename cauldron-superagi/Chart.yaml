@@ -1,0 +1,13 @@
+apiVersion: v2
+name: cauldron-superagi
+description: Helm chart for SuperAGI AI agent framework in the Cauldron sEOS
+type: application
+version: 0.1.0
+appVersion: "latest"
+maintainers:
+  - name: Cauldron Team
+    email: info@cauldron.ai
+dependencies:
+  - name: common
+    version: ~1.16.1
+    repository: https://charts.bitnami.com/bitnami

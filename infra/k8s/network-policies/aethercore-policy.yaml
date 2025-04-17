@@ -1,0 +1,66 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: aethercore-network-policy
+  namespace: cauldron
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: aethercore
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  # Allow API access from services that need agent orchestration
+  - from:
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/part-of: cauldron-seos
+    ports:
+    - protocol: TCP
+      port: 8000
+  egress:
+  # Allow connections to SuperAGI
+  - to:
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/name: superagi
+    ports:
+    - protocol: TCP
+      port: 8080
+  # Allow connections to databases
+  - to:
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/name: postgres
+    ports:
+    - protocol: TCP
+      port: 5432
+  - to:
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/name: qdrant
+    ports:
+    - protocol: TCP
+      port: 6333
+  # Allow connections to message broker
+  - to:
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/name: rabbitmq
+    ports:
+    - protocol: TCP
+      port: 5672
+  # Allow DNS resolution
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: kube-system
+      podSelector:
+        matchLabels:
+          k8s-app: kube-dns
+    ports:
+    - protocol: UDP
+      port: 53
+    - protocol: TCP
+      port: 53
